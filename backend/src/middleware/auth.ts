@@ -10,7 +10,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: {
-        id: number;
+        id: string;
       };
     }
   }
@@ -31,7 +31,7 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId },
+      where: { id: String(decoded.userId) },
       select: { id: true },
     });
 

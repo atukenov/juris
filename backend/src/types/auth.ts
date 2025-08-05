@@ -13,7 +13,7 @@ export interface User {
 export interface AuthenticatedRequest extends Request {
   user:
     | {
-        id: number;
+        id: string;
       }
     | undefined;
 }

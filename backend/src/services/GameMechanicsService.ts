@@ -23,7 +23,7 @@ export class GameMechanicsService {
 
   // Check and update user's energy
   static async checkEnergy(
-    userId: number,
+    userId: string,
     energyCost: number
   ): Promise<boolean> {
     const energy = await prisma.user_energy.findFirst({
@@ -79,8 +79,8 @@ export class GameMechanicsService {
 
   // Calculate team capture bonus
   static async calculateTeamBonus(
-    teamId: number,
-    territoryId: number
+    teamId: string,
+    territoryId: string
   ): Promise<number> {
     const activeMembers = await prisma.teamMember.count({
       where: {
@@ -102,7 +102,7 @@ export class GameMechanicsService {
 
   // Calculate time and weather bonus
   static async calculateEnvironmentalBonus(
-    territoryId: number
+    territoryId: string
   ): Promise<number> {
     const currentHour = new Date().getHours();
     const weather = await prisma.weather_conditions.findFirst({
@@ -130,8 +130,8 @@ export class GameMechanicsService {
 
   // Update territory fortification
   static async updateFortification(
-    territoryId: number,
-    teamId: number
+    territoryId: string,
+    teamId: string
   ): Promise<void> {
     const capture = await prisma.territoryCapture.findFirst({
       where: {
@@ -142,7 +142,7 @@ export class GameMechanicsService {
     });
 
     if (capture) {
-      const lastFortTime = capture.last_fortification_time;
+      const lastFortTime = capture.lastFortificationTime;
       const now = new Date();
 
       // Can fortify once per 24 hours
@@ -153,8 +153,8 @@ export class GameMechanicsService {
         await prisma.territoryCapture.update({
           where: { id: capture.id },
           data: {
-            fortification_level: Math.min(capture.fortification_level + 1, 5),
-            last_fortification_time: now,
+            fortificationLevel: Math.min(capture.fortificationLevel + 1, 5),
+            lastFortificationTime: now,
           },
         });
       }

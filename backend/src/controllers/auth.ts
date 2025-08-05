@@ -160,7 +160,7 @@ export const getProfile = async (
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: String(userId) },
       select: {
         id: true,
         username: true,
@@ -201,7 +201,7 @@ export const updateProfile = async (
             email ? { email } : undefined,
             username ? { username } : undefined,
           ].filter(Boolean),
-          NOT: { id: userId },
+          NOT: { id: String(userId) },
         },
       });
 
@@ -213,7 +213,7 @@ export const updateProfile = async (
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: userId },
+      where: { id: String(userId) },
       data: {
         username,
         email,

@@ -86,7 +86,7 @@ export const getTeamById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const team = await prisma.team.findUnique({
       where: {
-        id: parseInt(id),
+        id: id,
         isActive: true,
       },
       include: {
@@ -128,7 +128,7 @@ export const updateTeam = async (req: Request, res: Response) => {
     const userId = req.user?.id;
 
     const team = await prisma.team.findUnique({
-      where: { id: parseInt(id) },
+      where: { id: id },
     });
 
     if (!team) {
@@ -140,7 +140,7 @@ export const updateTeam = async (req: Request, res: Response) => {
     }
 
     const updatedTeam = await prisma.team.update({
-      where: { id: parseInt(id) },
+      where: { id: id },
       data: {
         name,
         description,
@@ -176,7 +176,7 @@ export const joinTeam = async (req: Request, res: Response) => {
     // Check if user is already a member
     const existingMember = await prisma.teamMember.findFirst({
       where: {
-        teamId: parseInt(id),
+        teamId: id,
         userId,
       },
     });
@@ -187,7 +187,7 @@ export const joinTeam = async (req: Request, res: Response) => {
 
     const membership = await prisma.teamMember.create({
       data: {
-        teamId: parseInt(id),
+        teamId: id,
         userId,
         role: 'member',
       },

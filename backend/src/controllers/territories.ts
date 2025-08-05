@@ -76,7 +76,7 @@ export const getTerritoryById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
-    const territory = await prisma.$queryRaw`
+    const territory = await prisma.$queryRaw<any[]>`
       SELECT 
         t.id,
         t.name,

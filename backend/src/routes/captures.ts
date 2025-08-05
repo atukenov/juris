@@ -64,15 +64,11 @@ router.get('/team/:teamId', async (req, res) => {
       `;
 
     const team = await prisma.team.findUnique({
-      where: { id: parseInt(teamId) },
-      select: {
-        name: true,
-        color: true,
+      where: { id: String(teamId) },
+      include: {
         _count: {
           select: {
-            captures: {
-              where: { isActive: true },
-            },
+            captures: true,
           },
         },
       },
@@ -84,7 +80,8 @@ router.get('/team/:teamId', async (req, res) => {
 
     res.json({
       team: {
-        ...team,
+        id: team.id,
+        name: team.name,
         totalTerritories: team._count.captures,
       },
       territories,

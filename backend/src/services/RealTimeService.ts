@@ -62,7 +62,7 @@ export class RealTimeService {
       }
 
       // Join user's team room
-      const userTeam = await this.getUserTeam(userId);
+      const userTeam = await this.getUserTeam(String(userId));
       if (userTeam) {
         socket.join(`team:${userTeam.teamId}`);
       }
@@ -98,7 +98,7 @@ export class RealTimeService {
     }
   }
 
-  private async getUserTeam(userId: number) {
+  private async getUserTeam(userId: string) {
     return await prisma.teamMember.findFirst({
       where: { userId, team: { isActive: true } },
     });
@@ -106,7 +106,7 @@ export class RealTimeService {
 
   private async handleLocationUpdate(
     userId: number,
-    teamId: number | undefined,
+    teamId: string | undefined,
     sessionId: string,
     data: LocationData
   ) {
@@ -158,7 +158,7 @@ export class RealTimeService {
 
   private async handleCapturePathUpdate(
     userId: number,
-    teamId: number | undefined,
+    teamId: string | undefined,
     data: CapturePathData
   ) {
     try {
