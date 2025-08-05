@@ -10,7 +10,12 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": ["juris", "api", "backend", "geolocation"],
+  "keywords": [
+    "juris",
+    "api",
+    "backend",
+    "geolocation"
+  ],
   "author": "",
   "license": "ISC",
   "description": "Backend API for Juris territorial game application",

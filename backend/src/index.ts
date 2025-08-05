@@ -14,17 +14,17 @@ app.use(express.json());
 
 // Basic route
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'Juris API Server is running!',
-    version: '1.0.0'
+    version: '1.0.0',
   });
 });
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
+  res.json({
     status: 'OK',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
