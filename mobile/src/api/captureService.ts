@@ -47,7 +47,9 @@ export const captureService = {
   },
 
   async releaseCapture(captureId: string) {
-    const { data } = await api.delete<{ message: string }>(`/captures/${captureId}`);
+    const { data } = await api.delete<{ message: string }>(
+      `/captures/${captureId}`
+    );
     return data;
   },
 };

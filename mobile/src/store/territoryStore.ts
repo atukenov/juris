@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { Territory, territoryService, NearbyTerritoriesParams } from "../api/territoryService";
+import {
+  Territory,
+  territoryService,
+  NearbyTerritoriesParams,
+} from "../api/territoryService";
 
 interface TerritoryState {
   territories: Territory[];
@@ -27,7 +31,10 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       set({ territories, isLoading: false });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to fetch territories",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch territories",
         isLoading: false,
       });
     }
@@ -36,11 +43,16 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
   fetchNearbyTerritories: async (params: NearbyTerritoriesParams) => {
     set({ isLoading: true, error: null });
     try {
-      const nearbyTerritories = await territoryService.getNearbyTerritories(params);
+      const nearbyTerritories = await territoryService.getNearbyTerritories(
+        params
+      );
       set({ nearbyTerritories, isLoading: false });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to fetch nearby territories",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch nearby territories",
         isLoading: false,
       });
     }
@@ -56,7 +68,8 @@ export const useTerritoryStore = create<TerritoryState>((set, get) => ({
       return territory;
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to fetch territory",
+        error:
+          error instanceof Error ? error.message : "Failed to fetch territory",
       });
       return null;
     }

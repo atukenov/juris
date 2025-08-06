@@ -29,7 +29,10 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       return capture;
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to capture territory",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to capture territory",
         isLoading: false,
       });
       return null;
@@ -43,7 +46,10 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       set({ activeCaptures, isLoading: false });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to fetch active captures",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch active captures",
         isLoading: false,
       });
     }
@@ -56,7 +62,10 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       set({ captureHistory, isLoading: false });
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to fetch capture history",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch capture history",
         isLoading: false,
       });
     }
@@ -67,12 +76,15 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     try {
       await captureService.releaseCapture(captureId);
       set((state: CaptureState) => ({
-        activeCaptures: state.activeCaptures.filter((c: Capture) => c.id !== captureId),
+        activeCaptures: state.activeCaptures.filter(
+          (c: Capture) => c.id !== captureId
+        ),
         isLoading: false,
       }));
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to release capture",
+        error:
+          error instanceof Error ? error.message : "Failed to release capture",
         isLoading: false,
       });
     }
