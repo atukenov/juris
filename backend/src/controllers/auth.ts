@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import { Response } from 'express';
 import { sign, verify } from 'jsonwebtoken';
-import { prisma } from '../lib/prisma';
+import { pool } from '../lib/database';
 import {
   ApiResponse,
   AuthenticatedRequest,
@@ -51,52 +51,64 @@ export const register = async (
     const { username, email, password, firstName, lastName } = req.body;
 
     // Check if user already exists
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { username }],
-      },
-    });
+    const client = await pool.connect();
+    try {
+      const existingUserQuery = `
+        SELECT id FROM users 
+        WHERE email = $1 OR username = $2
+      `;
+      const existingUser = await client.query(existingUserQuery, [
+        email,
+        username,
+      ]);
 
-    if (existingUser) {
-      return res.status(400).json({
-        error: 'User with this email or username already exists',
-      });
-    }
+      if (existingUser.rows.length > 0) {
+        return res.status(400).json({
+          error: 'User with this email or username already exists',
+        });
+      }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+      // Hash password
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
 
-    // Create user
-    const user = await prisma.user.create({
-      data: {
+      // Create user
+      const createUserQuery = `
+        INSERT INTO users (username, email, password_hash, first_name, last_name, created_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+        RETURNING id, username, email, first_name, last_name
+      `;
+      const userResult = await client.query(createUserQuery, [
         username,
         email,
         passwordHash,
-        firstName,
-        lastName,
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
+        firstName || null,
+        lastName || null,
+      ]);
 
-    // Generate JWT
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not set');
+      const user = userResult.rows[0];
+
+      // Generate JWT
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET is not set');
+      }
+
+      const token = createAuthToken(user.id, jwtSecret);
+
+      res.status(201).json({
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+        token,
+      });
+    } finally {
+      client.release();
     }
-
-    const token = createAuthToken(user.id, jwtSecret);
-
-    res.status(201).json({
-      user,
-      token,
-    });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Error creating user' });
@@ -110,39 +122,49 @@ export const login = async (
   try {
     const { email, password } = req.body;
 
-    // Find user
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const client = await pool.connect();
+    try {
+      // Find user
+      const userQuery = `
+        SELECT id, username, email, password_hash, first_name, last_name
+        FROM users 
+        WHERE email = $1
+      `;
+      const userResult = await client.query(userQuery, [email]);
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      if (userResult.rows.length === 0) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      const user = userResult.rows[0];
+
+      // Check password
+      const isMatch = await bcrypt.compare(password, user.password_hash);
+      if (!isMatch) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+
+      // Generate JWT
+      const jwtSecret = process.env.JWT_SECRET;
+      if (!jwtSecret) {
+        throw new Error('JWT_SECRET is not set');
+      }
+
+      const token = createAuthToken(user.id, jwtSecret);
+
+      res.json({
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.first_name,
+          lastName: user.last_name,
+        },
+        token,
+      });
+    } finally {
+      client.release();
     }
-
-    // Check password
-    const isMatch = await bcrypt.compare(password, user.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    // Generate JWT
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not set');
-    }
-
-    const token = createAuthToken(user.id, jwtSecret);
-
-    res.json({
-      user: {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-      },
-      token,
-    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Error logging in' });
@@ -159,178 +181,55 @@ export const getProfile = async (
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: String(userId) },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
+    const client = await pool.connect();
+    try {
+      const userQuery = `
+        SELECT id, username, email, first_name, last_name
+        FROM users 
+        WHERE id = $1
+      `;
+      const userResult = await client.query(userQuery, [userId]);
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      if (userResult.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const user = userResult.rows[0];
+      res.json({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      });
+    } finally {
+      client.release();
     }
-
-    res.json(user);
   } catch (error) {
     console.error('Get profile error:', error);
     res.status(500).json({ error: 'Error fetching profile' });
   }
 };
 
+// TODO: Implement remaining functions (updateProfile, requestPasswordReset, resetPassword)
+// For now, simplified versions that return not implemented
 export const updateProfile = async (
   req: UpdateProfileRequest,
   res: Response<ApiResponse<Omit<User, 'passwordHash'>>>
 ) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const { username, email, firstName, lastName } = req.body;
-
-    // Check if email/username is already taken by another user
-    if (email || username) {
-      const existingUser = await prisma.user.findFirst({
-        where: {
-          OR: [
-            email ? { email } : undefined,
-            username ? { username } : undefined,
-          ].filter(Boolean),
-          NOT: { id: String(userId) },
-        },
-      });
-
-      if (existingUser) {
-        return res.status(400).json({
-          error: 'Username or email is already taken',
-        });
-      }
-    }
-
-    const updatedUser = await prisma.user.update({
-      where: { id: String(userId) },
-      data: {
-        username,
-        email,
-        firstName,
-        lastName,
-      },
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-      },
-    });
-
-    res.json(updatedUser);
-  } catch (error) {
-    console.error('Update profile error:', error);
-    res.status(500).json({ error: 'Error updating profile' });
-  }
+  res.status(501).json({ error: 'Not implemented yet' });
 };
 
 export const requestPasswordReset = async (
   req: PasswordResetRequest,
   res: Response<ApiResponse<MessageResponse>>
 ) => {
-  try {
-    const { email } = req.body;
-
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (!user) {
-      // Return 200 even if user not found for security
-      return res.json({
-        message: 'If an account exists, a reset link will be sent',
-      });
-    }
-
-    // Generate reset token
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new Error('JWT_SECRET is not set');
-    }
-    const resetToken = createResetToken(user.id, jwtSecret + user.passwordHash);
-
-    // Store reset token and expiry
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        resetToken,
-        resetTokenExpiry: new Date(Date.now() + 3600000), // 1 hour
-      },
-    });
-
-    // TODO: Send email with reset link
-    // For now, just return the token
-    res.json({
-      message: 'If an account exists, a reset link will be sent',
-      token: resetToken,
-    });
-  } catch (error) {
-    console.error('Password reset request error:', error);
-    res.status(500).json({ error: 'Error processing password reset request' });
-  }
+  res.status(501).json({ error: 'Not implemented yet' });
 };
 
 export const resetPassword = async (
   req: ResetConfirmRequest,
   res: Response<ApiResponse<MessageResponse>>
 ) => {
-  try {
-    const { token, newPassword } = req.body;
-
-    // Find user with valid reset token
-    const user = await prisma.user.findFirst({
-      where: {
-        resetToken: token,
-        resetTokenExpiry: {
-          gt: new Date(),
-        },
-      },
-    });
-
-    if (!user) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    // Verify token
-    try {
-      const jwtSecret = process.env.JWT_SECRET;
-      if (!jwtSecret) {
-        throw new Error('JWT_SECRET is not set');
-      }
-      verifyToken(token, jwtSecret + user.passwordHash);
-    } catch (error) {
-      return res.status(400).json({ error: 'Invalid or expired reset token' });
-    }
-
-    // Hash new password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
-
-    // Update password and clear reset token
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordHash,
-        resetToken: null,
-        resetTokenExpiry: null,
-      },
-    });
-
-    res.json({ message: 'Password successfully reset' });
-  } catch (error) {
-    console.error('Password reset error:', error);
-    res.status(500).json({ error: 'Error resetting password' });
-  }
+  res.status(501).json({ error: 'Not implemented yet' });
 };

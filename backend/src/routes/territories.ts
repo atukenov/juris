@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { body, query } from 'express-validator';
+import * as validator from 'express-validator';
 import * as territoriesController from '../controllers/territories';
 import { auth } from '../middleware/auth';
+
+const { body, query } = validator;
 
 const router = Router();
 
@@ -33,12 +35,6 @@ router.post(
   territoriesController.createTerritory
 );
 
-// Get all territories
-router.get('/', territoriesController.getTerritories);
-
-// Get territory by ID
-router.get('/:id', territoriesController.getTerritoryById);
-
 // Get nearby territories
 router.get(
   '/nearby',
@@ -54,5 +50,11 @@ router.get(
   ],
   territoriesController.getNearbyTerritories
 );
+
+// Get all territories
+router.get('/', territoriesController.getTerritories);
+
+// Get territory by ID
+router.get('/:id', territoriesController.getTerritoryById);
 
 export default router;

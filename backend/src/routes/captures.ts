@@ -1,95 +1,93 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
-import * as pathCapturesController from '../controllers/pathCaptures';
+import * as validator from 'express-validator';
 import { auth } from '../middleware/auth';
+import {
+  captureTerritory,
+  getActiveCaptures,
+  getCaptureHistory,
+  releaseTerritoryCapture,
+} from '../controllers/captures';
 
 const router = Router();
 
-// All capture routes require authentication
+// Middleware для аутентификации на всех маршрутах
 router.use(auth);
 
-// Start a capture path
+// POST /api/captures - Захват территории командой
 router.post(
-  '/:territoryId/start-capture',
+  '/',
   [
-    body('lat').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-    body('lng')
+    validator
+      .body('territoryId')
+      .isInt({ min: 1 })
+      .withMessage('Territory ID must be a positive integer'),
+    validator
+      .body('teamId')
+      .isInt({ min: 1 })
+      .withMessage('Team ID must be a positive integer'),
+    validator
+      .body('latitude')
+      .isFloat({ min: -90, max: 90 })
+      .withMessage('Latitude must be between -90 and 90'),
+    validator
+      .body('longitude')
       .isFloat({ min: -180, max: 180 })
-      .withMessage('Invalid longitude'),
+      .withMessage('Longitude must be between -180 and 180'),
+    validator
+      .body('captureMethod')
+      .optional()
+      .isIn(['presence', 'challenge', 'event'])
+      .withMessage('Capture method must be one of: presence, challenge, event'),
   ],
-  pathCapturesController.startCapturePath
+  captureTerritory
 );
 
-// Add point to capture path
-router.post(
-  '/path/:pathId/point',
+// GET /api/captures/active - Получить все активные захваты
+router.get('/active', getActiveCaptures);
+
+// GET /api/captures/history - Получить историю захватов с фильтрами
+router.get(
+  '/history',
   [
-    body('lat').isFloat({ min: -90, max: 90 }).withMessage('Invalid latitude'),
-    body('lng')
-      .isFloat({ min: -180, max: 180 })
-      .withMessage('Invalid longitude'),
+    validator
+      .query('territoryId')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Territory ID must be a positive integer'),
+    validator
+      .query('teamId')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('Team ID must be a positive integer'),
+    validator
+      .query('userId')
+      .optional()
+      .isInt({ min: 1 })
+      .withMessage('User ID must be a positive integer'),
+    validator
+      .query('limit')
+      .optional()
+      .isInt({ min: 1, max: 100 })
+      .withMessage('Limit must be between 1 and 100'),
+    validator
+      .query('offset')
+      .optional()
+      .isInt({ min: 0 })
+      .withMessage('Offset must be a non-negative integer'),
   ],
-  pathCapturesController.addPathPoint
+  getCaptureHistory
 );
 
-// Complete capture path
-router.post(
-  '/path/:pathId/complete',
-  pathCapturesController.completeCapturePath
+// DELETE /api/captures/:id - Освобождение захвата территории
+router.delete(
+  '/:id',
+  [
+    validator
+      .param('id')
+      .isInt({ min: 1 })
+      .withMessage('Capture ID must be a positive integer'),
+  ],
+  releaseTerritoryCapture
 );
-
-// Get team's territories
-router.get('/team/:teamId', async (req, res) => {
-  try {
-    const { teamId } = req.params;
-
-    const territories = await prisma.$queryRaw`
-        SELECT 
-          t.id,
-          t.name,
-          t.description,
-          ST_AsGeoJSON(t.boundary)::json as boundary,
-          ST_AsGeoJSON(t.center_point)::json as center_point,
-          t.difficulty_level,
-          t.points_value,
-          tc.captured_at,
-          tc.points_earned,
-          cp.path_line as capture_path
-        FROM territories t
-        JOIN territory_captures tc ON t.id = tc.territory_id
-        LEFT JOIN capture_paths cp ON t.id = cp.territory_id AND cp.is_completed = true
-        WHERE tc.team_id = ${parseInt(teamId)}
-          AND tc.is_active = true
-        ORDER BY tc.captured_at DESC
-      `;
-
-    const team = await prisma.team.findUnique({
-      where: { id: String(teamId) },
-      include: {
-        _count: {
-          select: {
-            captures: true,
-          },
-        },
-      },
-    });
-
-    if (!team) {
-      return res.status(404).json({ error: 'Team not found' });
-    }
-
-    res.json({
-      team: {
-        id: team.id,
-        name: team.name,
-        totalTerritories: team._count.captures,
-      },
-      territories,
-    });
-  } catch (error) {
-    console.error('Get team territories error:', error);
-    res.status(500).json({ error: 'Error fetching team territories' });
-  }
-});
 
 export default router;

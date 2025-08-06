@@ -1,7 +1,9 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import * as validator from 'express-validator';
 import * as teamsController from '../controllers/teams';
 import { auth } from '../middleware/auth';
+
+const { body } = validator;
 
 const router = Router();
 

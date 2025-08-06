@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import * as jwt from 'jsonwebtoken';
-import { prisma } from '../lib/prisma';
+import { pool } from '../lib/database';
 
 interface JwtPayload {
   userId: number;
@@ -30,17 +30,21 @@ export const auth = async (req: Request, res: Response, next: NextFunction) => {
     }
 
     const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-    const user = await prisma.user.findUnique({
-      where: { id: String(decoded.userId) },
-      select: { id: true },
-    });
 
-    if (!user) {
-      throw new Error();
+    const client = await pool.connect();
+    try {
+      const userQuery = 'SELECT id FROM users WHERE id = $1';
+      const userResult = await client.query(userQuery, [decoded.userId]);
+
+      if (userResult.rows.length === 0) {
+        throw new Error();
+      }
+
+      req.user = { id: userResult.rows[0].id };
+      next();
+    } finally {
+      client.release();
     }
-
-    req.user = user;
-    next();
   } catch (error) {
     res.status(401).json({ error: 'Please authenticate.' });
   }
