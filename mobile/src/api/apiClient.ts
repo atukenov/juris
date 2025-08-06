@@ -1,13 +1,16 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 
-const BASE_URL = "http://localhost:3000/api";
+// Use localhost for development
+// For real device testing, replace with your computer's IP address
+const BASE_URL = __DEV__ ? "http://localhost:3000/api" : "http://146.31.242.101:3000/api";
 
 export const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 10000, // 10 second timeout
 });
 
 // Add token to requests

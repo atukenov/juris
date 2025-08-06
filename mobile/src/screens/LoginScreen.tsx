@@ -22,13 +22,19 @@ export const LoginScreen = () => {
     }
   };
 
+  const handleRegister = () => {
+    // This will need navigation context - for now just a placeholder
+    console.log("Navigate to register");
+  };
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
     >
       <View style={styles.form}>
-        <Text style={styles.title}>Welcome Back</Text>
+        <Text style={styles.title}>Welcome to Juris</Text>
+        <Text style={styles.subtitle}>Capture territories while running</Text>
 
         <TextInput
           style={styles.input}
@@ -56,6 +62,21 @@ export const LoginScreen = () => {
           onPress={handleLogin}
           loading={isLoading}
           disabled={!email || !password}
+          style={styles.loginButton}
+        />
+
+        <Button
+          title="Create Account"
+          onPress={handleRegister}
+          variant="outline"
+          style={styles.registerButton}
+        />
+
+        <Button
+          title="Forgot Password?"
+          onPress={() => console.log("Navigate to forgot password")}
+          variant="text"
+          style={styles.forgotButton}
         />
       </View>
     </KeyboardAvoidingView>
@@ -78,6 +99,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: theme.colors.text,
     textAlign: "center",
+    marginBottom: theme.spacing.md,
+  },
+  subtitle: {
+    fontSize: theme.typography.body.fontSize,
+    color: theme.colors.textLight,
+    textAlign: "center",
     marginBottom: theme.spacing.xl,
   },
   input: {
@@ -94,5 +121,14 @@ const styles = StyleSheet.create({
     color: theme.colors.error,
     fontSize: 14,
     textAlign: "center",
+  },
+  loginButton: {
+    marginTop: theme.spacing.lg,
+  },
+  registerButton: {
+    marginTop: theme.spacing.md,
+  },
+  forgotButton: {
+    marginTop: theme.spacing.sm,
   },
 });

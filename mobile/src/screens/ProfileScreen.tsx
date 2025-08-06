@@ -8,6 +8,7 @@ import {
   View,
 } from "react-native";
 import { Button } from "../components/Button";
+import { ApiTestComponent } from "../components/ApiTestComponent";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
 
@@ -52,6 +53,9 @@ export const ProfileScreen = () => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* API Test Component */}
+      <ApiTestComponent />
+      
       <View style={styles.form}>
         <Text style={styles.title}>Profile</Text>
 

@@ -1,12 +1,13 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, View, Platform } from "react-native";
 import { MapComponent } from "../components/MapComponent";
+import { MapComponentWeb } from "../components/MapComponentWeb";
 import { theme } from "../theme/theme";
 
 export const MapScreen = () => {
   return (
     <View style={styles.container}>
-      <MapComponent />
+      {Platform.OS === 'web' ? <MapComponentWeb /> : <MapComponent />}
     </View>
   );
 };
