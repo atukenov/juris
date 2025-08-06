@@ -4,9 +4,9 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { testDatabaseConnection } from './lib/database';
 import authRoutes from './routes/auth';
+import captureRoutes from './routes/captures';
 import teamRoutes from './routes/teams';
 import territoryRoutes from './routes/territories';
-import captureRoutes from './routes/captures';
 
 // Load environment variables
 const envPath = path.join(__dirname, '..', '.env');
@@ -68,37 +68,12 @@ app.get('/db-test', async (req, res) => {
   }
 });
 
-app.listen(PORT, async () => {
+app.listen(3000, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📱 Health check: http://localhost:${PORT}/health`);
-  console.log(`🗃️  Database test: http://localhost:${PORT}/db-test`);
+  console.log(`📱 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`🗃️  Database test: http://0.0.0.0:${PORT}/db-test`);
 
   // Test database connection on startup
   console.log('\n🔌 Testing database connection...');
   await testDatabaseConnection();
-
-  console.log(`\n🔑 Authentication endpoints:`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/register`);
-  console.log(`   POST http://localhost:${PORT}/api/auth/login`);
-
-  console.log(`\n👥 Team endpoints:`);
-  console.log(`   GET  http://localhost:${PORT}/api/teams`);
-  console.log(`   POST http://localhost:${PORT}/api/teams`);
-  console.log(`   GET  http://localhost:${PORT}/api/teams/:id`);
-  console.log(`   PUT  http://localhost:${PORT}/api/teams/:id`);
-  console.log(`   POST http://localhost:${PORT}/api/teams/:id/join`);
-
-  console.log(`\n🗺️  Territory endpoints:`);
-  console.log(`   GET  http://localhost:${PORT}/api/territories`);
-  console.log(`   POST http://localhost:${PORT}/api/territories`);
-  console.log(`   GET  http://localhost:${PORT}/api/territories/:id`);
-  console.log(
-    `   GET  http://localhost:${PORT}/api/territories/nearby?lat=&lng=&radius=`
-  );
-
-  console.log(`\n🎯 Capture endpoints:`);
-  console.log(`   POST http://localhost:${PORT}/api/captures`);
-  console.log(`   GET  http://localhost:${PORT}/api/captures/active`);
-  console.log(`   GET  http://localhost:${PORT}/api/captures/history`);
-  console.log(`   DELETE http://localhost:${PORT}/api/captures/:id`);
 });

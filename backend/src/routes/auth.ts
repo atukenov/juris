@@ -6,6 +6,9 @@ const { body } = validator;
 
 const router = Router();
 
+// Get user profile
+router.get('/profile', authController.getProfile);
+
 router.post(
   '/register',
   [
@@ -45,5 +48,7 @@ router.post(
   ],
   authController.login
 );
+
+// Update user profile
 
 export default router;

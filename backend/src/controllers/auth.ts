@@ -1,5 +1,5 @@
 import * as bcrypt from 'bcryptjs';
-import { Response } from 'express';
+import { Request, RequestHandler, Response } from 'express';
 import { sign, verify } from 'jsonwebtoken';
 import { pool } from '../lib/database';
 import {
@@ -171,36 +171,37 @@ export const login = async (
   }
 };
 
-export const getProfile = async (
-  req: AuthenticatedRequest,
-  res: Response<ApiResponse<Omit<User, 'passwordHash'>>>
+export const getProfile: RequestHandler = async (
+  req: Request,
+  res: Response
 ) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
+    const { user } = req as AuthenticatedRequest;
+
+    if (!user?.id) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const client = await pool.connect();
     try {
       const userQuery = `
-        SELECT id, username, email, first_name, last_name
-        FROM users 
-        WHERE id = $1
-      `;
-      const userResult = await client.query(userQuery, [userId]);
+      SELECT id, username, email, first_name, last_name
+      FROM users 
+      WHERE id = $1
+    `;
+      const userResult = await client.query(userQuery, [user.id]);
 
       if (userResult.rows.length === 0) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      const user = userResult.rows[0];
-      res.json({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        firstName: user.first_name,
-        lastName: user.last_name,
+      const userRow = userResult.rows[0];
+      return res.json({
+        id: userRow.id,
+        username: userRow.username,
+        email: userRow.email,
+        firstName: userRow.first_name,
+        lastName: userRow.last_name,
       });
     } finally {
       client.release();

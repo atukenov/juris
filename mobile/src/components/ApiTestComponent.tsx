@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Alert } from "react-native";
-import { Button } from "./Button";
+import { Alert, StyleSheet, Text, View } from "react-native";
 import { api } from "../api/apiClient";
 import { theme } from "../theme/theme";
+import { Button } from "./Button";
 
 // Simple health check using fetch since axios has import issues
 const healthCheck = async () => {
-  const response = await fetch("http://localhost:3000/health");
-  return response.json();
+  const response = await fetch("http://192.168.100.124:3000/health");
+  return response.status === 200
+    ? { status: "OK" }
+    : { status: "Error", code: response.status };
 };
 
 export const ApiTestComponent = () => {
-  const [connectionStatus, setConnectionStatus] = useState<string>("Testing...");
+  const [connectionStatus, setConnectionStatus] =
+    useState<string>("Testing...");
   const [isLoading, setIsLoading] = useState(false);
 
   const testConnection = async () => {
@@ -24,7 +27,10 @@ export const ApiTestComponent = () => {
     } catch (error: any) {
       console.error("API Connection Error:", error);
       setConnectionStatus(`❌ Failed: ${error.message}`);
-      Alert.alert("Connection Error", `Could not connect to backend: ${error.message}`);
+      Alert.alert(
+        "Connection Error",
+        `Could not connect to backend: ${error.message}`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -52,17 +58,17 @@ export const ApiTestComponent = () => {
     <View style={styles.container}>
       <Text style={styles.title}>API Connection Test</Text>
       <Text style={styles.status}>{connectionStatus}</Text>
-      
+
       <View style={styles.buttonContainer}>
-        <Button 
-          title="Test Health" 
-          onPress={testConnection} 
+        <Button
+          title="Test Health"
+          onPress={testConnection}
           loading={isLoading}
           variant="primary"
         />
-        <Button 
-          title="Test Teams API" 
-          onPress={testTeamsEndpoint} 
+        <Button
+          title="Test Teams API"
+          onPress={testTeamsEndpoint}
           loading={isLoading}
           variant="outline"
         />

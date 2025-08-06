@@ -1,3 +1,6 @@
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "navigation/types";
 import React, { useState } from "react";
 import {
   KeyboardAvoidingView,
@@ -11,10 +14,16 @@ import { Button } from "../components/Button";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
 
+type LoginScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  "Login"
+>;
+
 export const LoginScreen = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { login, isLoading, error } = useAuthStore();
+  const navigation = useNavigation<LoginScreenNavigationProp>();
 
   const handleLogin = async () => {
     if (email && password) {
@@ -24,6 +33,7 @@ export const LoginScreen = () => {
 
   const handleRegister = () => {
     // This will need navigation context - for now just a placeholder
+    navigation.navigate("Register");
     console.log("Navigate to register");
   };
 
