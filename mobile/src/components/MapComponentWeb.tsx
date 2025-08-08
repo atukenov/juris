@@ -1,15 +1,22 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { theme } from "../theme/theme";
+import { Territory } from "../api/territoryService";
 
 interface MapComponentWebProps {
   onRegionChange?: (region: any) => void;
   onPress?: (event: any) => void;
+  territories?: Territory[];
+  onTerritoryPress?: (territoryId: string) => void;
+  userLocation?: any;
 }
 
 export const MapComponentWeb = ({
   onRegionChange,
   onPress,
+  territories = [],
+  onTerritoryPress,
+  userLocation,
 }: MapComponentWebProps) => {
   return (
     <View style={styles.container}>
@@ -22,11 +29,35 @@ export const MapComponentWeb = ({
       </Text>
       
       <View style={styles.apiStatus}>
-        <Text style={styles.statusTitle}>API Integration Ready:</Text>
+        <Text style={styles.statusTitle}>API Integration Status:</Text>
         <Text style={styles.statusItem}>✅ Territory API connected</Text>
         <Text style={styles.statusItem}>✅ Capture functionality ready</Text>
         <Text style={styles.statusItem}>✅ Real-time updates prepared</Text>
+        <Text style={styles.statusItem}>
+          🗺️ {territories.length} territories loaded
+        </Text>
+        <Text style={styles.statusItem}>
+          📍 Location: {userLocation ? 'Available' : 'Not available'}
+        </Text>
       </View>
+
+      {territories.length > 0 && (
+        <View style={styles.territoriesList}>
+          <Text style={styles.statusTitle}>Nearby Territories:</Text>
+          {territories.slice(0, 3).map((territory) => (
+            <TouchableOpacity
+              key={territory.id}
+              style={styles.territoryItem}
+              onPress={() => onTerritoryPress?.(territory.id)}
+            >
+              <Text style={styles.territoryName}>{territory.name}</Text>
+              <Text style={styles.territoryDescription}>
+                {territory.description || "No description"}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -66,6 +97,7 @@ const styles = StyleSheet.create({
     borderRadius: theme.borderRadius.md,
     width: "100%",
     maxWidth: 300,
+    marginBottom: theme.spacing.lg,
   },
   statusTitle: {
     fontSize: theme.typography.h2.fontSize,
@@ -79,5 +111,30 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     marginBottom: theme.spacing.xs,
     textAlign: "center",
+  },
+  territoriesList: {
+    backgroundColor: theme.colors.background,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.md,
+    width: "100%",
+    maxWidth: 300,
+  },
+  territoryItem: {
+    backgroundColor: theme.colors.surface,
+    padding: theme.spacing.sm,
+    borderRadius: theme.borderRadius.sm,
+    marginBottom: theme.spacing.sm,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+  },
+  territoryName: {
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: "600",
+    color: theme.colors.text,
+  },
+  territoryDescription: {
+    fontSize: theme.typography.caption.fontSize,
+    color: theme.colors.textLight,
+    marginTop: theme.spacing.xs,
   },
 });
