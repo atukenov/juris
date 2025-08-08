@@ -6,7 +6,7 @@ import { Button } from "./Button";
 
 // Simple health check using fetch since axios has import issues
 const healthCheck = async () => {
-  const response = await fetch("http://192.168.100.124:3000/health");
+  const response = await fetch("http://192.168.68.195:3000/health");
   return response.status === 200
     ? { status: "OK" }
     : { status: "Error", code: response.status };

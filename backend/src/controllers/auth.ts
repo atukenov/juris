@@ -7,12 +7,7 @@ import {
   AuthenticatedRequest,
   AuthResponse,
   LoginRequest,
-  MessageResponse,
-  PasswordResetRequest,
   RegisterRequest,
-  ResetConfirmRequest,
-  UpdateProfileRequest,
-  User,
 } from '../types/auth';
 
 type JWTPayload = {
@@ -131,7 +126,6 @@ export const login = async (
         WHERE email = $1
       `;
       const userResult = await client.query(userQuery, [email]);
-
       if (userResult.rows.length === 0) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
