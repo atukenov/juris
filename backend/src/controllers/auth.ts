@@ -214,23 +214,143 @@ export const getProfile: RequestHandler = async (
 
 // TODO: Implement remaining functions (updateProfile, requestPasswordReset, resetPassword)
 // For now, simplified versions that return not implemented
-export const updateProfile = async (
-  req: UpdateProfileRequest,
-  res: Response<ApiResponse<Omit<User, 'passwordHash'>>>
-) => {
-  res.status(501).json({ error: 'Not implemented yet' });
+export const updateProfile = async (req: Request, res: Response) => {
+  try {
+    const { user } = req as AuthenticatedRequest;
+    const { username, firstName, lastName, email } = req.body;
+
+    if (!user?.id) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const client = await pool.connect();
+    try {
+      const updateQuery = `
+        UPDATE users 
+        SET username = COALESCE($1, username),
+            first_name = COALESCE($2, first_name), 
+            last_name = COALESCE($3, last_name),
+            email = COALESCE($4, email),
+            updated_at = NOW()
+        WHERE id = $5
+        RETURNING id, username, email, first_name, last_name
+      `;
+      const result = await client.query(updateQuery, [
+        username,
+        firstName,
+        lastName,
+        email,
+        user.id,
+      ]);
+
+      if (result.rows.length === 0) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const updatedUser = result.rows[0];
+      res.json({
+        id: updatedUser.id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+      });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Update profile error:', error);
+    res.status(500).json({ error: 'Error updating profile' });
+  }
 };
 
-export const requestPasswordReset = async (
-  req: PasswordResetRequest,
-  res: Response<ApiResponse<MessageResponse>>
-) => {
-  res.status(501).json({ error: 'Not implemented yet' });
+export const requestPasswordReset = async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const client = await pool.connect();
+    try {
+      // Check if user exists
+      const userQuery = `SELECT id FROM users WHERE email = $1`;
+      const userResult = await client.query(userQuery, [email]);
+
+      // Always return success to prevent email enumeration
+      res.json({
+        message:
+          'If an account with that email exists, a password reset link has been sent.',
+      });
+
+      // Only proceed if user actually exists
+      if (userResult.rows.length === 0) {
+        return;
+      }
+
+      // TODO: In production, send actual email with reset token
+      console.log(`Password reset requested for email: ${email}`);
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Password reset request error:', error);
+    res.status(500).json({ error: 'Error processing password reset request' });
+  }
 };
 
-export const resetPassword = async (
-  req: ResetConfirmRequest,
-  res: Response<ApiResponse<MessageResponse>>
-) => {
-  res.status(501).json({ error: 'Not implemented yet' });
+export const resetPassword = async (req: Request, res: Response) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      return res
+        .status(400)
+        .json({ error: 'Token and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res
+        .status(400)
+        .json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    try {
+      const jwtSecret = process.env.JWT_SECRET;
+      const decoded = verifyToken(token, jwtSecret) as JWTPayload;
+
+      const client = await pool.connect();
+      try {
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+
+        // Update user password
+        const updateQuery = `
+          UPDATE users 
+          SET password_hash = $1, updated_at = NOW()
+          WHERE id = $2
+          RETURNING id
+        `;
+        const result = await client.query(updateQuery, [
+          passwordHash,
+          decoded.userId,
+        ]);
+
+        if (result.rows.length === 0) {
+          return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.json({ message: 'Password reset successfully' });
+      } finally {
+        client.release();
+      }
+    } catch (tokenError) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Error resetting password' });
+  }
 };

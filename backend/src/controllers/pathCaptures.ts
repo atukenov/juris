@@ -107,7 +107,12 @@ export const addPathPoint = async (req: Request, res: Response) => {
       LIMIT 5
     `;
 
-    const points: PathPoint[] = lastPoints.map((p) => ({
+    interface LastPointData {
+      lat: number;
+      lng: number;
+    }
+
+    const points: PathPoint[] = lastPoints.map((p: LastPointData) => ({
       ...point,
       lat: p.lat,
       lng: p.lng,

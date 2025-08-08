@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body } from 'express-validator';
 import * as pathCapturesController from '../controllers/pathCaptures';
 import { auth } from '../middleware/auth';
+import { prisma } from '../lib/prisma';
 
 const router = Router();
 
