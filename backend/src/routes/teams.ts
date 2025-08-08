@@ -21,8 +21,14 @@ router.post(
     body('description').optional().trim(),
     body('color')
       .optional()
-      .matches(/^#[0-9A-Fa-f]{6}$/)
-      .withMessage('Color must be a valid hex color (e.g., #FF0000)'),
+      .custom((value) => {
+        if (value && !teamsController.TEAM_COLORS.includes(value)) {
+          throw new Error(
+            'Invalid color. Must be one of the predefined colors.'
+          );
+        }
+        return true;
+      }),
   ],
   teamsController.createTeam
 );
@@ -45,13 +51,45 @@ router.put(
     body('description').optional().trim(),
     body('color')
       .optional()
-      .matches(/^#[0-9A-Fa-f]{6}$/)
-      .withMessage('Color must be a valid hex color (e.g., #FF0000)'),
+      .custom((value) => {
+        if (value && !teamsController.TEAM_COLORS.includes(value)) {
+          throw new Error(
+            'Invalid color. Must be one of the predefined colors.'
+          );
+        }
+        return true;
+      }),
   ],
   teamsController.updateTeam
 );
 
 // Join team
 router.post('/:id/join', teamsController.joinTeam);
+
+// Leave team
+router.post('/:id/leave', teamsController.leaveTeam);
+
+// Get available team colors
+router.get('/colors/available', teamsController.getAvailableColors);
+
+// Get pending ownership transfers
+router.get('/transfers/pending', teamsController.getPendingTransfers);
+
+// Transfer ownership
+router.post(
+  '/:id/transfer-ownership',
+  [
+    body('newOwnerId')
+      .isInt({ min: 1 })
+      .withMessage('New owner ID must be a positive integer'),
+  ],
+  teamsController.transferOwnership
+);
+
+// Accept ownership transfer
+router.post('/transfers/:transferId/accept', teamsController.acceptOwnership);
+
+// Reject ownership transfer
+router.post('/transfers/:transferId/reject', teamsController.rejectOwnership);
 
 export default router;
