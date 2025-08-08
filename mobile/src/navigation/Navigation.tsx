@@ -1,7 +1,7 @@
 import { NavigationContainer } from "@react-navigation/native";
 import React, { useEffect } from "react";
-import { useAuthStore } from "../store/authStore";
 import { LoadingOverlay } from "../components/LoadingOverlay";
+import { useAuthStore } from "../store/authStore";
 import { AuthNavigator } from "./AuthNavigator";
 import { MainNavigator } from "./MainNavigator";
 
