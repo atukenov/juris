@@ -13,6 +13,7 @@ import {
 import { Button } from "../components/Button";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
+import { ApiTestComponent } from "components/ApiTestComponent";
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -20,14 +21,14 @@ type LoginScreenNavigationProp = NativeStackNavigationProp<
 >;
 
 export const LoginScreen = () => {
-  const [email, setEmail] = useState("");
+  const [emailOrUsername, setEmailOrUsername] = useState("");
   const [password, setPassword] = useState("");
   const { login, isLoading, error } = useAuthStore();
   const navigation = useNavigation<LoginScreenNavigationProp>();
 
   const handleLogin = async () => {
-    if (email && password) {
-      await login(email, password);
+    if (emailOrUsername && password) {
+      await login(emailOrUsername, password);
     }
   };
 
@@ -48,10 +49,9 @@ export const LoginScreen = () => {
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
+          placeholder="Email or Username"
+          value={emailOrUsername}
+          onChangeText={setEmailOrUsername}
           autoCapitalize="none"
           placeholderTextColor={theme.colors.textLight}
         />
@@ -71,7 +71,7 @@ export const LoginScreen = () => {
           title="Login"
           onPress={handleLogin}
           loading={isLoading}
-          disabled={!email || !password}
+          disabled={!emailOrUsername || !password}
           style={styles.loginButton}
         />
 
