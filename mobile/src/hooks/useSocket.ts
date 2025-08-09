@@ -5,7 +5,7 @@ import { useChatStore } from '../store/chatStore';
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null);
-  const { addMessage, updateReactions, setTypingUsers } = useChatStore();
+  const { addMessage, updateReactions, setTypingUsers, setUnreadCount } = useChatStore();
 
   useEffect(() => {
     const initSocket = async () => {
@@ -29,11 +29,22 @@ export const useSocket = () => {
         });
 
         socket.on('reactionUpdate', ({ messageId, reactions }) => {
+          console.log('Received reactionUpdate:', { messageId, reactions });
           updateReactions(messageId, reactions);
         });
 
         socket.on('typingUpdate', ({ typers }) => {
+          console.log('Received typingUpdate:', { typers });
           setTypingUsers(typers);
+        });
+
+        socket.on('unreadCountUpdate', ({ userId, unreadCount }) => {
+          const currentUserId = parseInt(token.split('.')[1] ? 
+            JSON.parse(atob(token.split('.')[1])).userId || 
+            JSON.parse(atob(token.split('.')[1])).id : 0);
+          if (userId === currentUserId) {
+            setUnreadCount(unreadCount);
+          }
         });
 
         socket.on('disconnect', () => {
@@ -53,7 +64,7 @@ export const useSocket = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [addMessage, updateReactions, setTypingUsers]);
+  }, [addMessage, updateReactions, setTypingUsers, setUnreadCount]);
 
   const sendMessage = (message: string) => {
     if (socketRef.current) {

@@ -249,6 +249,8 @@ export class RealTimeService {
         };
 
         this.io.to(`team:${teamId}`).emit('newMessage', messageData);
+        
+        await this.broadcastUnreadCountUpdate(teamId, userId);
       } finally {
         client.release();
       }
@@ -288,6 +290,7 @@ export class RealTimeService {
         `;
         const typersResult = await client.query(typersQuery, [teamId, userId]);
 
+        console.log('Emitting typingUpdate:', { typers: typersResult.rows.map(row => row.username) });
         socket.to(`team:${teamId}`).emit('typingUpdate', {
           typers: typersResult.rows.map(row => row.username)
         });
@@ -346,6 +349,7 @@ export class RealTimeService {
         `;
         const reactionsResult = await client.query(reactionsQuery, [data.messageId]);
 
+        console.log('Emitting reactionUpdate:', { messageId: data.messageId, reactions: reactionsResult.rows });
         this.io.to(`team:${teamId}`).emit('reactionUpdate', {
           messageId: data.messageId,
           reactions: reactionsResult.rows
@@ -356,6 +360,42 @@ export class RealTimeService {
 
     } catch (error) {
       console.error('Reaction error:', error);
+    }
+  }
+
+  private async broadcastUnreadCountUpdate(teamId: string, senderUserId: number) {
+    try {
+      const client = await pool.connect();
+      try {
+        const membersQuery = `
+          SELECT tm.user_id FROM team_members tm
+          JOIN teams t ON tm.team_id = t.id
+          WHERE tm.team_id = $1 AND tm.user_id != $2 AND t.is_active = true
+        `;
+        const membersResult = await client.query(membersQuery, [teamId, senderUserId]);
+        
+        for (const member of membersResult.rows) {
+          const countQuery = `
+            SELECT COUNT(*) as unread_count
+            FROM chat_messages cm
+            LEFT JOIN chat_read_status crs ON crs.team_id = cm.team_id AND crs.user_id = $1
+            WHERE cm.team_id = $2 
+            AND cm.user_id != $1
+            AND (crs.last_read_message_id IS NULL OR cm.id > crs.last_read_message_id)
+          `;
+          const countResult = await client.query(countQuery, [member.user_id, teamId]);
+          const unreadCount = parseInt(countResult.rows[0].unread_count);
+          
+          this.io.to(`team:${teamId}`).emit('unreadCountUpdate', {
+            userId: member.user_id,
+            unreadCount
+          });
+        }
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Unread count update error:', error);
     }
   }
 }
