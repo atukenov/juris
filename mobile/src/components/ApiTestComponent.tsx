@@ -4,14 +4,6 @@ import { api } from "../api/apiClient";
 import { theme } from "../theme/theme";
 import { Button } from "./Button";
 
-// Simple health check using fetch since axios has import issues
-const healthCheck = async () => {
-  const response = await fetch("http://192.168.100.124:3000/health");
-  return response.status === 200
-    ? { status: "OK" }
-    : { status: "Error", code: response.status };
-};
-
 export const ApiTestComponent = () => {
   const [connectionStatus, setConnectionStatus] =
     useState<string>("Testing...");
@@ -21,7 +13,7 @@ export const ApiTestComponent = () => {
     setIsLoading(true);
     try {
       // Test health endpoint using fetch
-      const response = await healthCheck();
+      const response = await fetch("http://192.168.100.46:3000/health");
       console.log("API Health Response:", response);
       setConnectionStatus(`✅ Connected: ${response.status}`);
     } catch (error: any) {

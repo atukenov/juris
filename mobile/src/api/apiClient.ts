@@ -11,8 +11,6 @@ const getBaseURL = () => {
       
       if (host.includes('.exp.direct')) {
         console.log('Tunnel mode detected - debuggerHost:', debuggerHost);
-        
-        
         console.log('Tunnel mode detected - using localhost for backend (tunnel provides secure connection)');
         return "http://localhost:3000/api";
       } else {
