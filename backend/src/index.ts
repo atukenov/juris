@@ -2,7 +2,9 @@ import express = require('express');
 import cors = require('cors');
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { createServer } from 'http';
 import { testDatabaseConnection } from './lib/database';
+import { RealTimeService } from './services/RealTimeService';
 import authRoutes from './routes/auth';
 import captureRoutes from './routes/captures';
 import teamRoutes from './routes/teams';
@@ -25,6 +27,7 @@ if (!process.env.DATABASE_URL) {
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const httpServer = createServer(app);
 
 // Middleware
 app.use(cors());
@@ -71,10 +74,13 @@ app.get('/db-test', async (req, res) => {
   }
 });
 
-app.listen(3000, '0.0.0.0', async () => {
+const realTimeService = new RealTimeService(httpServer);
+
+httpServer.listen(3000, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📱 Health check: http://0.0.0.0:${PORT}/health`);
   console.log(`🗃️  Database test: http://0.0.0.0:${PORT}/db-test`);
+  console.log(`🔌 Socket.io server initialized for real-time chat`);
 
   // Test database connection on startup
   console.log('\n🔌 Testing database connection...');
