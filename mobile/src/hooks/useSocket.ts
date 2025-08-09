@@ -29,12 +29,10 @@ export const useSocket = () => {
         });
 
         socket.on('reactionUpdate', ({ messageId, reactions }) => {
-          console.log('Received reactionUpdate:', { messageId, reactions });
           updateReactions(messageId, reactions);
         });
 
         socket.on('typingUpdate', ({ typers }) => {
-          console.log('Received typingUpdate:', { typers });
           setTypingUsers(typers);
         });
 

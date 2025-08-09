@@ -290,7 +290,6 @@ export class RealTimeService {
         `;
         const typersResult = await client.query(typersQuery, [teamId, userId]);
 
-        console.log('Emitting typingUpdate:', { typers: typersResult.rows.map(row => row.username) });
         socket.to(`team:${teamId}`).emit('typingUpdate', {
           typers: typersResult.rows.map(row => row.username)
         });
@@ -349,7 +348,6 @@ export class RealTimeService {
         `;
         const reactionsResult = await client.query(reactionsQuery, [data.messageId]);
 
-        console.log('Emitting reactionUpdate:', { messageId: data.messageId, reactions: reactionsResult.rows });
         this.io.to(`team:${teamId}`).emit('reactionUpdate', {
           messageId: data.messageId,
           reactions: reactionsResult.rows
