@@ -10,8 +10,10 @@ const getBaseURL = () => {
       const host = debuggerHost.split(':')[0];
       
       if (host.includes('.exp.direct')) {
-        console.log('Tunnel mode detected - using localhost for backend (tunnel only exposes mobile app)');
-        return "http://localhost:3000/api";
+        const tunnelBase = host.replace('-8081', '-3000');
+        const tunnelUrl = `https://${tunnelBase}/api`;
+        console.log('Tunnel mode detected - using tunnel URL for backend:', tunnelUrl);
+        return tunnelUrl;
       } else {
         const localUrl = `http://${host}:3000/api`;
         console.log('Using local network URL:', localUrl);
