@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useChatStore } from '../store/chatStore';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useRef } from "react";
+import { io, Socket } from "socket.io-client";
+import { useChatStore } from "../store/chatStore";
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null);
@@ -10,32 +10,32 @@ export const useSocket = () => {
   useEffect(() => {
     const initSocket = async () => {
       try {
-        const token = await AsyncStorage.getItem('auth_token');
+        const token = await AsyncStorage.getItem("auth_token");
         if (!token) return;
 
         const socket = io(
-          process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000",
+          process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.46:3000",
           {
             auth: { token },
           }
         );
 
-        socket.on('connect', () => {
-          console.log('Connected to chat server');
+        socket.on("connect", () => {
+          console.log("Connected to chat server");
         });
 
-        socket.on('newMessage', (message) => {
+        socket.on("newMessage", (message) => {
           addMessage(message);
         });
 
-        socket.on('reactionUpdate', ({ messageId, reactions }) => {
+        socket.on("reactionUpdate", ({ messageId, reactions }) => {
           updateReactions(messageId, reactions);
         });
 
-        socket.on('typingUpdate', ({ typers }) => {
+        socket.on("typingUpdate", ({ typers }) => {
           setTypingUsers(typers);
         });
-
+        
         socket.on('unreadCountUpdate', ({ userId, unreadCount }) => {
           const currentUserId = parseInt(token.split('.')[1] ? 
             JSON.parse(atob(token.split('.')[1])).userId || 
@@ -51,7 +51,7 @@ export const useSocket = () => {
 
         socketRef.current = socket;
       } catch (error) {
-        console.error('Socket connection error:', error);
+        console.error("Socket connection error:", error);
       }
     };
 
@@ -66,19 +66,19 @@ export const useSocket = () => {
 
   const sendMessage = (message: string) => {
     if (socketRef.current) {
-      socketRef.current.emit('sendMessage', { message });
+      socketRef.current.emit("sendMessage", { message });
     }
   };
 
   const setTyping = (isTyping: boolean) => {
     if (socketRef.current) {
-      socketRef.current.emit('typing', { isTyping });
+      socketRef.current.emit("typing", { isTyping });
     }
   };
 
   const addReaction = (messageId: number, emoji: string) => {
     if (socketRef.current) {
-      socketRef.current.emit('addReaction', { messageId, emoji });
+      socketRef.current.emit("addReaction", { messageId, emoji });
     }
   };
 

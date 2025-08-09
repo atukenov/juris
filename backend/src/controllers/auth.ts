@@ -198,21 +198,22 @@ export const getProfile: RequestHandler = async (
         WHERE tm.user_id = $1 AND t.is_active = true
       `;
       const teamResult = await client.query(teamQuery, [user.id]);
-
-      const currentTeam = teamResult.rows.length > 0 ? {
-        id: teamResult.rows[0].id,
-        name: teamResult.rows[0].name,
-        color: teamResult.rows[0].color,
-        role: teamResult.rows[0].role
-      } : null;
-
+      const currentTeam =
+        teamResult.rows.length > 0
+          ? {
+              id: teamResult.rows[0].id,
+              name: teamResult.rows[0].name,
+              color: teamResult.rows[0].color,
+              role: teamResult.rows[0].role,
+            }
+          : null;
       return res.json({
         id: userRow.id,
         username: userRow.username,
         email: userRow.email,
         firstName: userRow.first_name,
         lastName: userRow.last_name,
-        currentTeam
+        currentTeam,
       });
     } finally {
       client.release();
