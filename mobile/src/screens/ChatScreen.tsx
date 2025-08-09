@@ -7,6 +7,7 @@ import {
   FlatList,
   StyleSheet,
   Alert,
+  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useChatStore } from '../store/chatStore';
@@ -29,6 +30,7 @@ const getUserColor = (username: string) => {
 export const ChatScreen = () => {
   const [messageText, setMessageText] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
@@ -110,26 +112,35 @@ export const ChatScreen = () => {
     try {
       await addReactionStore(messageId, emoji);
       addReaction(messageId, emoji);
+      setShowEmojiPicker(null);
     } catch (error) {
       console.error('Reaction error:', error);
     }
   };
 
+  const handleLongPress = (messageId: number) => {
+    setShowEmojiPicker(showEmojiPicker === messageId ? null : messageId);
+  };
+
   const renderMessage = ({ item }: { item: any }) => {
     const isOwnMessage = item.user_id === user?.id;
     const userColor = getUserColor(item.username);
+    const showPicker = showEmojiPicker === item.id;
     
     return (
       <View style={[
         styles.messageContainer,
         isOwnMessage ? styles.ownMessage : styles.otherMessage
       ]}>
-        <View style={[
-          styles.messageBubble,
-          isOwnMessage 
-            ? { backgroundColor: theme.colors.primary }
-            : { backgroundColor: userColor }
-        ]}>
+        <Pressable
+          onLongPress={() => handleLongPress(item.id)}
+          style={[
+            styles.messageBubble,
+            isOwnMessage 
+              ? { backgroundColor: theme.colors.primary }
+              : { backgroundColor: userColor }
+          ]}
+        >
           <Text style={styles.username}>{item.username}</Text>
           <Text style={styles.messageText}>{item.message}</Text>
           <Text style={styles.timestamp}>
@@ -138,10 +149,13 @@ export const ChatScreen = () => {
               minute: '2-digit' 
             })}
           </Text>
-        </View>
+        </Pressable>
         
         {item.reactions && item.reactions.length > 0 && (
-          <View style={styles.reactionsContainer}>
+          <View style={[
+            styles.reactionsContainer,
+            isOwnMessage ? styles.reactionsRight : styles.reactionsLeft
+          ]}>
             {item.reactions.map((reaction: any, index: number) => (
               <TouchableOpacity
                 key={index}
@@ -155,17 +169,22 @@ export const ChatScreen = () => {
           </View>
         )}
         
-        <View style={styles.emojiPicker}>
-          {EMOJI_OPTIONS.map((emoji) => (
-            <TouchableOpacity
-              key={emoji}
-              style={styles.emojiButton}
-              onPress={() => handleReaction(item.id, emoji)}
-            >
-              <Text style={styles.emoji}>{emoji}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {showPicker && (
+          <View style={[
+            styles.emojiPicker,
+            isOwnMessage ? styles.emojiPickerRight : styles.emojiPickerLeft
+          ]}>
+            {EMOJI_OPTIONS.map((emoji) => (
+              <TouchableOpacity
+                key={emoji}
+                style={styles.emojiButton}
+                onPress={() => handleReaction(item.id, emoji)}
+              >
+                <Text style={styles.emoji}>{emoji}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
       </View>
     );
   };
@@ -249,7 +268,8 @@ const styles = StyleSheet.create({
     padding: theme.spacing.md,
   },
   messageContainer: {
-    marginBottom: theme.spacing.md,
+    marginBottom: theme.spacing.lg,
+    position: 'relative',
   },
   ownMessage: {
     alignItems: 'flex-end',
@@ -280,18 +300,34 @@ const styles = StyleSheet.create({
   },
   reactionsContainer: {
     flexDirection: 'row',
-    marginTop: theme.spacing.xs,
     flexWrap: 'wrap',
+    position: 'absolute',
+    bottom: -8,
+    zIndex: 1,
+  },
+  reactionsLeft: {
+    left: 0,
+  },
+  reactionsRight: {
+    right: 0,
   },
   reactionBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: theme.colors.surface,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.xs,
+    backgroundColor: theme.colors.white,
+    borderRadius: 12,
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    marginRight: theme.spacing.xs,
-    marginBottom: theme.spacing.xs,
+    marginRight: 4,
+    marginBottom: 2,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
   },
   reactionEmoji: {
     fontSize: 12,
@@ -303,19 +339,39 @@ const styles = StyleSheet.create({
   },
   emojiPicker: {
     flexDirection: 'row',
-    marginTop: theme.spacing.xs,
+    position: 'absolute',
+    bottom: -20,
+    backgroundColor: theme.colors.white,
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    zIndex: 2,
+  },
+  emojiPickerLeft: {
+    left: 0,
+  },
+  emojiPickerRight: {
+    right: 0,
   },
   emojiButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: theme.colors.surface,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.xs,
+    marginHorizontal: 2,
   },
   emoji: {
-    fontSize: 12,
+    fontSize: 16,
   },
   typingContainer: {
     padding: theme.spacing.md,
