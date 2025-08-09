@@ -13,7 +13,7 @@
 - [ ] Personal runs, just statistics and etc.
 - [x] On login and when navigate to teams, if user is already have team, it not displays it correctly. shows the button to create a team, but team already owned.
 - [x] Cannot leave until new owner is assigned. Leave button must be disabled if he is owner.
-- [ ] The team card need to be swiped right and delete button appears. and swipe left edit button appears.
+- [x] The team card need to be swiped right and delete button appears. and swipe left edit button appears.
 - [x] After joining someone team, create team button need to be hidden and disabled. also show that already member, and show information about the team, and button to leave the team.
 - [x] Can be joined only one team.
 - [ ] Login can be done by email and by username

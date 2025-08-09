@@ -830,8 +830,8 @@ export const deleteTeam = async (req: Request, res: Response) => {
 
       const team = teamResult.rows[0];
       if (team.owner_id !== parseInt(userId)) {
-        return res.status(403).json({ 
-          error: 'Only team owner can delete the team' 
+        return res.status(403).json({
+          error: 'Only team owner can delete the team',
         });
       }
 
@@ -851,8 +851,8 @@ export const deleteTeam = async (req: Request, res: Response) => {
 
       await client.query('COMMIT');
 
-      res.json({ 
-        message: `Team "${team.name}" has been deleted successfully` 
+      res.json({
+        message: `Team "${team.name}" has been deleted successfully`,
       });
     } catch (error) {
       await client.query('ROLLBACK');
