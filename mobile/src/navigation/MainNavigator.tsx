@@ -5,6 +5,7 @@ import { MapScreen } from "../screens/MapScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { RunScreen } from "../screens/RunScreen";
 import { TeamScreen } from "../screens/TeamScreen";
+import { ChatScreen } from "../screens/ChatScreen";
 import { theme } from "../theme/theme";
 import { RootStackParamList } from "./types";
 
@@ -55,6 +56,15 @@ export const MainNavigator = () => {
         options={{
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="people" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Chat"
+        component={ChatScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="chatbubbles" size={size} color={color} />
           ),
         }}
       />
