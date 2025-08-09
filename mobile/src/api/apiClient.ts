@@ -1,11 +1,32 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
+import Constants from "expo-constants";
 
-// Use localhost for development
-// For real device testing, replace with your computer's IP address
-const BASE_URL = __DEV__
-  ? "http://192.168.100.124:3000/api"
-  : "http://localhost:3000/api";
+const getBaseURL = () => {
+  if (__DEV__) {
+    const debuggerHost = Constants.expoConfig?.hostUri;
+    
+    if (debuggerHost) {
+      const host = debuggerHost.split(':')[0];
+      
+      if (host.includes('.exp.direct')) {
+        console.log('Tunnel mode detected - using localhost for backend (tunnel only exposes mobile app)');
+        return "http://localhost:3000/api";
+      } else {
+        const localUrl = `http://${host}:3000/api`;
+        console.log('Using local network URL:', localUrl);
+        return localUrl;
+      }
+    }
+    
+    console.log('Using localhost fallback URL');
+    return "http://localhost:3000/api";
+  } else {
+    return "https://your-production-api.com/api";
+  }
+};
+
+const BASE_URL = getBaseURL();
 
 export const api = axios.create({
   baseURL: BASE_URL,
