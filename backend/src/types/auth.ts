@@ -32,7 +32,7 @@ export interface RegisterRequest extends Request {
 // Login request
 export interface LoginRequest extends Request {
   body: {
-    email: string;
+    emailOrUsername: string;
     password: string;
   };
 }

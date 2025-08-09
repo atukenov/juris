@@ -49,7 +49,7 @@ export const register = async (
     const client = await pool.connect();
     try {
       const existingUserQuery = `
-        SELECT id FROM users 
+        SELECT id FROM users
         WHERE email = $1 OR username = $2
       `;
       const existingUser = await client.query(existingUserQuery, [
@@ -115,17 +115,17 @@ export const login = async (
   res: Response<ApiResponse<AuthResponse>>
 ) => {
   try {
-    const { email, password } = req.body;
+    const { emailOrUsername, password } = req.body;
 
     const client = await pool.connect();
     try {
-      // Find user
+      // Find user by email or username
       const userQuery = `
         SELECT id, username, email, password_hash, first_name, last_name
-        FROM users 
-        WHERE email = $1
+        FROM users
+        WHERE email = $1 OR username = $1
       `;
-      const userResult = await client.query(userQuery, [email]);
+      const userResult = await client.query(userQuery, [emailOrUsername]);
       if (userResult.rows.length === 0) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
@@ -170,6 +170,7 @@ export const getProfile: RequestHandler = async (
   res: Response
 ) => {
   try {
+    console.log("Getting user.")
     const { user } = req as AuthenticatedRequest;
 
     if (!user?.id) {
@@ -180,7 +181,7 @@ export const getProfile: RequestHandler = async (
     try {
       const userQuery = `
       SELECT id, username, email, first_name, last_name
-      FROM users 
+      FROM users
       WHERE id = $1
     `;
       const userResult = await client.query(userQuery, [user.id]);
@@ -220,9 +221,9 @@ export const updateProfile = async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
       const updateQuery = `
-        UPDATE users 
+        UPDATE users
         SET username = COALESCE($1, username),
-            first_name = COALESCE($2, first_name), 
+            first_name = COALESCE($2, first_name),
             last_name = COALESCE($3, last_name),
             email = COALESCE($4, email),
             updated_at = NOW()
@@ -322,7 +323,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
         // Update user password
         const updateQuery = `
-          UPDATE users 
+          UPDATE users
           SET password_hash = $1, updated_at = NOW()
           WHERE id = $2
           RETURNING id

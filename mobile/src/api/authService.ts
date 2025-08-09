@@ -2,12 +2,14 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "./apiClient";
 
 interface LoginCredentials {
-  email: string;
+  emailOrUsername: string;
   password: string;
 }
 
-interface RegisterData extends LoginCredentials {
+interface RegisterData {
   username: string;
+  email: string;
+  password: string;
 }
 
 interface AuthResponse {
@@ -21,7 +23,10 @@ interface AuthResponse {
 
 export const authService = {
   async login(credentials: LoginCredentials) {
-    const { data } = await api.post<AuthResponse>("/auth/login", credentials);
+    const { data } = await api.post<AuthResponse>("/auth/login", {
+      emailOrUsername: credentials.emailOrUsername,
+      password: credentials.password
+    });
     await AsyncStorage.setItem("auth_token", data.token);
     return data;
   },
@@ -37,8 +42,8 @@ export const authService = {
   },
 
   async getProfile() {
-    const { data } = await api.get("/auth/profile");
-    return data;
+      const { data } = await api.get("/auth/profile");
+      return data;
   },
 
   async updateProfile(

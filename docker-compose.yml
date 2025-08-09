@@ -12,7 +12,11 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/001_init.sql
+      - ./backend/database/migrations/002_capture_paths.sql:/docker-entrypoint-initdb.d/002_capture_paths.sql
+      - ./backend/database/migrations/003_game_mechanics.sql:/docker-entrypoint-initdb.d/003_game_mechanics.sql
+      - ./backend/database/migrations/004_realtime_tracking.sql:/docker-entrypoint-initdb.d/004_realtime_tracking.sql
+      - ./backend/database/migrations/005_team_ownership.sql:/docker-entrypoint-initdb.d/005_team_ownership.sql
     restart: unless-stopped
 
   redis:

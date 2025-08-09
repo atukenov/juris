@@ -94,10 +94,10 @@ router.post(
 router.post(
   '/login',
   [
-    body('email')
-      .isEmail()
-      .normalizeEmail()
-      .withMessage('Invalid email address'),
+    body('emailOrUsername')
+      .trim()
+      .notEmpty()
+      .withMessage('Email or username is required'),
     body('password').exists().withMessage('Password is required'),
   ],
   authController.login
