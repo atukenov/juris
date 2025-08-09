@@ -170,7 +170,6 @@ export const getProfile: RequestHandler = async (
   res: Response
 ) => {
   try {
-    console.log("Getting user.")
     const { user } = req as AuthenticatedRequest;
 
     if (!user?.id) {
