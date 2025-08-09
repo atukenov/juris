@@ -13,9 +13,12 @@ export const useSocket = () => {
         const token = await AsyncStorage.getItem('auth_token');
         if (!token) return;
 
-        const socket = io(process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000', {
-          auth: { token }
-        });
+        const socket = io(
+          process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000",
+          {
+            auth: { token },
+          }
+        );
 
         socket.on('connect', () => {
           console.log('Connected to chat server');

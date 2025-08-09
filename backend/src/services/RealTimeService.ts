@@ -3,6 +3,7 @@ import { Server } from 'http';
 import Redis from 'ioredis';
 import { Server as SocketServer } from 'socket.io';
 import { pool } from '../lib/database';
+import jwt from 'jsonwebtoken';
 
 interface LocationData {
   lat: number;
@@ -106,17 +107,34 @@ export class RealTimeService {
 
   private validateToken(token: string): number | null {
     try {
-      // Implement JWT validation here
-      return 1; // Temporary, replace with actual JWT validation
+      if (!token) return null;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      return decoded.userId || decoded.id;
     } catch {
       return null;
     }
   }
 
   private async getUserTeam(userId: string) {
-    return await prisma.teamMember.findFirst({
-      where: { userId, team: { isActive: true } },
-    });
+    try {
+      const client = await pool.connect();
+      try {
+        const query = `
+          SELECT tm.team_id as "teamId", t.name as "teamName"
+          FROM team_members tm
+          JOIN teams t ON tm.team_id = t.id
+          WHERE tm.user_id = $1 AND t.is_active = true
+          LIMIT 1
+        `;
+        const result = await client.query(query, [userId]);
+        return result.rows.length > 0 ? result.rows[0] : null;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error('Error getting user team:', error);
+      return null;
+    }
   }
 
   private async handleLocationUpdate(
@@ -126,46 +144,14 @@ export class RealTimeService {
     data: LocationData
   ) {
     try {
-      // Update user's location in active_runners
-      await prisma.$queryRaw`
-        INSERT INTO active_runners (
-          user_id, team_id, session_id, last_location, last_seen_at
-        )
-        VALUES (
-          ${userId},
-          ${teamId},
-          ${sessionId},
-          ST_SetSRID(ST_MakePoint(${data.lng}, ${data.lat}), 4326),
-          CURRENT_TIMESTAMP
-        )
-        ON CONFLICT (user_id, session_id)
-        DO UPDATE SET
-          last_location = ST_SetSRID(ST_MakePoint(${data.lng}, ${data.lat}), 4326),
-          last_seen_at = CURRENT_TIMESTAMP
-      `;
+      if (!teamId) return;
 
-      if (teamId) {
-        // Get visible teams
-        const visibleTeams = await prisma.team_visibility.findMany({
-          where: { team_id: teamId, visibility_type: 'location' },
-        });
-
-        // Emit location to teammate and visible teams
-        this.io.to(`team:${teamId}`).emit('teamLocation', {
-          userId,
-          location: data,
-          timestamp: new Date(),
-        });
-
-        visibleTeams.forEach(({ visible_to_team_id }) => {
-          this.io.to(`team:${visible_to_team_id}`).emit('otherTeamLocation', {
-            teamId,
-            userId,
-            location: data,
-            timestamp: new Date(),
-          });
-        });
-      }
+      // For now, just emit location to teammates
+      this.io.to(`team:${teamId}`).emit('teamLocation', {
+        userId,
+        location: data,
+        timestamp: new Date(),
+      });
     } catch (error) {
       console.error('Location update error:', error);
     }
@@ -177,40 +163,15 @@ export class RealTimeService {
     data: CapturePathData
   ) {
     try {
-      // Get active session for user
-      const activeSession = await prisma.active_runners.findFirst({
-        where: { userId },
-        orderBy: { last_seen_at: 'desc' },
+      if (!teamId) return;
+
+      // For now, just emit path update to teammates
+      this.io.to(`team:${teamId}`).emit('capturePath', {
+        userId,
+        pathId: data.pathId,
+        point: { lat: data.lat, lng: data.lng },
+        timestamp: new Date(),
       });
-
-      if (!activeSession) {
-        console.error('No active session found for user:', userId);
-        return;
-      }
-
-      // Update active capture status
-      await prisma.active_runners.update({
-        where: {
-          userId_sessionId: {
-            userId,
-            sessionId: activeSession.session_id,
-          },
-        },
-        data: {
-          is_capturing: true,
-          current_capture_path_id: data.pathId,
-        },
-      });
-
-      if (teamId) {
-        // Emit path update to teammates
-        this.io.to(`team:${teamId}`).emit('capturePath', {
-          userId,
-          pathId: data.pathId,
-          point: { lat: data.lat, lng: data.lng },
-          timestamp: new Date(),
-        });
-      }
     } catch (error) {
       console.error('Capture path update error:', error);
     }
@@ -218,10 +179,15 @@ export class RealTimeService {
 
   private async handleDisconnect(userId: number, sessionId: string) {
     try {
-      // Remove from active runners
-      await prisma.active_runners.delete({
-        where: { userId_sessionId: { userId, sessionId } },
-      });
+      const client = await pool.connect();
+      try {
+        await client.query(
+          'DELETE FROM chat_typing WHERE user_id = $1',
+          [userId]
+        );
+      } finally {
+        client.release();
+      }
     } catch (error) {
       console.error('Disconnect handling error:', error);
     }
