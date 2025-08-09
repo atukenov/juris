@@ -89,7 +89,12 @@ export class RealTimeService {
 
       // Handle typing indicator
       socket.on('typing', async (data) => {
-        await this.handleTyping(userId, userTeam?.teamId, data.isTyping, socket);
+        await this.handleTyping(
+          userId,
+          userTeam?.teamId,
+          data.isTyping,
+          socket
+        );
       });
 
       // Handle emoji reaction
@@ -254,9 +259,14 @@ export class RealTimeService {
     data: { message: string }
   ) {
     try {
+      console.log('handling chat message');
       if (!teamId) return;
 
-      if (!data.message || data.message.trim().length === 0 || data.message.length > 500) {
+      if (
+        !data.message ||
+        data.message.trim().length === 0 ||
+        data.message.length > 500
+      ) {
         return;
       }
 
@@ -267,7 +277,11 @@ export class RealTimeService {
           VALUES ($1, $2, $3, NOW())
           RETURNING id, message, created_at
         `;
-        const result = await client.query(insertQuery, [teamId, userId, data.message.trim()]);
+        const result = await client.query(insertQuery, [
+          teamId,
+          userId,
+          data.message.trim(),
+        ]);
         const message = result.rows[0];
 
         const userQuery = `SELECT username FROM users WHERE id = $1`;
@@ -279,7 +293,7 @@ export class RealTimeService {
           created_at: message.created_at,
           user_id: userId,
           username: userResult.rows[0].username,
-          reactions: []
+          reactions: [],
         };
 
         this.io.to(`team:${teamId}`).emit('newMessage', messageData);
@@ -303,15 +317,21 @@ export class RealTimeService {
       const client = await pool.connect();
       try {
         if (isTyping) {
-          await client.query(`
+          await client.query(
+            `
             INSERT INTO chat_typing (team_id, user_id, started_at)
             VALUES ($1, $2, NOW())
             ON CONFLICT (team_id, user_id) DO UPDATE SET started_at = NOW()
-          `, [teamId, userId]);
+          `,
+            [teamId, userId]
+          );
         } else {
-          await client.query(`
+          await client.query(
+            `
             DELETE FROM chat_typing WHERE team_id = $1 AND user_id = $2
-          `, [teamId, userId]);
+          `,
+            [teamId, userId]
+          );
         }
 
         const typersQuery = `
@@ -323,12 +343,11 @@ export class RealTimeService {
         const typersResult = await client.query(typersQuery, [teamId, userId]);
 
         socket.to(`team:${teamId}`).emit('typingUpdate', {
-          typers: typersResult.rows.map(row => row.username)
+          typers: typersResult.rows.map((row) => row.username),
         });
       } finally {
         client.release();
       }
-
     } catch (error) {
       console.error('Typing indicator error:', error);
     }
@@ -350,25 +369,38 @@ export class RealTimeService {
         const verifyQuery = `
           SELECT id FROM chat_messages WHERE id = $1 AND team_id = $2
         `;
-        const verifyResult = await client.query(verifyQuery, [data.messageId, teamId]);
+        const verifyResult = await client.query(verifyQuery, [
+          data.messageId,
+          teamId,
+        ]);
         if (verifyResult.rows.length === 0) return;
 
         const existingQuery = `
           SELECT id FROM chat_reactions 
           WHERE message_id = $1 AND user_id = $2 AND emoji = $3
         `;
-        const existingResult = await client.query(existingQuery, [data.messageId, userId, data.emoji]);
+        const existingResult = await client.query(existingQuery, [
+          data.messageId,
+          userId,
+          data.emoji,
+        ]);
 
         if (existingResult.rows.length > 0) {
-          await client.query(`
+          await client.query(
+            `
             DELETE FROM chat_reactions 
             WHERE message_id = $1 AND user_id = $2 AND emoji = $3
-          `, [data.messageId, userId, data.emoji]);
+          `,
+            [data.messageId, userId, data.emoji]
+          );
         } else {
-          await client.query(`
+          await client.query(
+            `
             INSERT INTO chat_reactions (message_id, user_id, emoji)
             VALUES ($1, $2, $3)
-          `, [data.messageId, userId, data.emoji]);
+          `,
+            [data.messageId, userId, data.emoji]
+          );
         }
 
         const reactionsQuery = `
@@ -378,16 +410,17 @@ export class RealTimeService {
           WHERE cr.message_id = $1
           GROUP BY emoji
         `;
-        const reactionsResult = await client.query(reactionsQuery, [data.messageId]);
+        const reactionsResult = await client.query(reactionsQuery, [
+          data.messageId,
+        ]);
 
         this.io.to(`team:${teamId}`).emit('reactionUpdate', {
           messageId: data.messageId,
-          reactions: reactionsResult.rows
+          reactions: reactionsResult.rows,
         });
       } finally {
         client.release();
       }
-
     } catch (error) {
       console.error('Reaction error:', error);
     }
