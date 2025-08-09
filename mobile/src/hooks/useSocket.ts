@@ -5,7 +5,7 @@ import { useChatStore } from "../store/chatStore";
 
 export const useSocket = () => {
   const socketRef = useRef<Socket | null>(null);
-  const { addMessage, updateReactions, setTypingUsers } = useChatStore();
+  const { addMessage, updateReactions, setTypingUsers, setUnreadCount } = useChatStore();
 
   useEffect(() => {
     const initSocket = async () => {
@@ -35,9 +35,18 @@ export const useSocket = () => {
         socket.on("typingUpdate", ({ typers }) => {
           setTypingUsers(typers);
         });
+        
+        socket.on('unreadCountUpdate', ({ userId, unreadCount }) => {
+          const currentUserId = parseInt(token.split('.')[1] ? 
+            JSON.parse(atob(token.split('.')[1])).userId || 
+            JSON.parse(atob(token.split('.')[1])).id : 0);
+          if (userId === currentUserId) {
+            setUnreadCount(unreadCount);
+          }
+        });
 
-        socket.on("disconnect", () => {
-          console.log("Disconnected from chat server");
+        socket.on('disconnect', () => {
+          console.log('Disconnected from chat server');
         });
 
         socketRef.current = socket;
@@ -53,7 +62,7 @@ export const useSocket = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [addMessage, updateReactions, setTypingUsers]);
+  }, [addMessage, updateReactions, setTypingUsers, setUnreadCount]);
 
   const sendMessage = (message: string) => {
     if (socketRef.current) {
