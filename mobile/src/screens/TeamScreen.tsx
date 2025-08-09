@@ -9,7 +9,9 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Animated,
 } from "react-native";
+import { PanGestureHandler, State } from "react-native-gesture-handler";
 import {
   CreateTeamData,
   OwnershipTransfer,
@@ -22,6 +24,126 @@ import { LoadingOverlay } from "../components/LoadingOverlay";
 import { useFeedback } from "../contexts/FeedbackContext";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
+
+interface SwipeableTeamCardProps {
+  team: TeamDetails;
+  isOwner: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  children: React.ReactNode;
+}
+
+const SwipeableTeamCard: React.FC<SwipeableTeamCardProps> = ({
+  team,
+  isOwner,
+  onEdit,
+  onDelete,
+  children,
+}) => {
+  const translateX = new Animated.Value(0);
+  const [isRevealed, setIsRevealed] = useState(false);
+
+  const handleGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX } }],
+    { useNativeDriver: false }
+  );
+
+  const handleStateChange = (event: any) => {
+    if (event.nativeEvent.state === State.END) {
+      const { translationX, velocityX } = event.nativeEvent;
+
+      // Determine swipe direction and distance
+      const shouldRevealLeft = translationX > 50 || velocityX > 500; // Swipe right (reveal edit)
+      const shouldRevealRight = translationX < -50 || velocityX < -500; // Swipe left (reveal delete)
+
+      if (shouldRevealLeft && isOwner && onEdit) {
+        // Reveal edit button (swipe right)
+        setIsRevealed(true);
+        Animated.spring(translateX, {
+          toValue: 80,
+          useNativeDriver: false,
+        }).start();
+      } else if (shouldRevealRight && isOwner && onDelete) {
+        // Reveal delete button (swipe left)  
+        setIsRevealed(true);
+        Animated.spring(translateX, {
+          toValue: -80,
+          useNativeDriver: false,
+        }).start();
+      } else {
+        // Snap back to center
+        setIsRevealed(false);
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  };
+
+  const resetPosition = () => {
+    setIsRevealed(false);
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const handleEdit = () => {
+    resetPosition();
+    onEdit?.();
+  };
+
+  const handleDelete = () => {
+    resetPosition();
+    onDelete?.();
+  };
+
+  return (
+    <View style={styles.swipeableContainer}>
+      {/* Hidden Action Buttons */}
+      {isRevealed && (
+        <>
+          {/* Edit Button (Left side - revealed by swiping right) */}
+          <TouchableOpacity
+            style={[styles.hiddenAction, styles.editAction]}
+            onPress={handleEdit}
+          >
+            <Ionicons name="pencil" size={20} color={theme.colors.background} />
+            <Text style={styles.hiddenActionText}>Edit</Text>
+          </TouchableOpacity>
+
+          {/* Delete Button (Right side - revealed by swiping left) */}
+          <TouchableOpacity
+            style={[styles.hiddenAction, styles.deleteAction]}
+            onPress={handleDelete}
+          >
+            <Ionicons name="trash" size={20} color={theme.colors.background} />
+            <Text style={styles.hiddenActionText}>Delete</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
+      {/* Main Card Content */}
+      <PanGestureHandler
+        onGestureEvent={handleGestureEvent}
+        onHandlerStateChange={handleStateChange}
+        enabled={isOwner} // Only enable swipe for owners
+      >
+        <Animated.View
+          style={[
+            styles.swipeableCard,
+            {
+              transform: [{ translateX }],
+            },
+          ]}
+        >
+          {children}
+        </Animated.View>
+      </PanGestureHandler>
+    </View>
+  );
+};
 
 export const TeamScreen: React.FC = () => {
   const { user } = useAuthStore();
@@ -39,6 +161,8 @@ export const TeamScreen: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showMemberList, setShowMemberList] = useState(false);
   const [showTransferForm, setShowTransferForm] = useState(false);
+  const [showAllTeams, setShowAllTeams] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<TeamDetails | null>(null);
 
   const [newTeamName, setNewTeamName] = useState("");
   const [newTeamDescription, setNewTeamDescription] = useState("");
@@ -61,40 +185,59 @@ export const TeamScreen: React.FC = () => {
   ];
 
   useEffect(() => {
-    loadTeams();
-    if (user?.id) {
-      checkUserTeam();
-      loadOwnershipTransfers();
-    }
+    const initializeData = async () => {
+      const teamsData = await loadTeams();
+      if (user?.id) {
+        await checkUserTeam(teamsData);
+        loadOwnershipTransfers();
+      }
+    };
+    
+    initializeData();
   }, [user]);
 
   const loadTeams = async () => {
     try {
-      const teams = await teamService.getTeams();
-      setTeams(teams);
+      const teamsData = await teamService.getTeams();
+      setTeams(teamsData);
+      return teamsData;
     } catch (error) {
       console.error("Failed to load teams:", error);
       showFeedback("Failed to load teams", "error");
+      return [];
     }
   };
 
-  const checkUserTeam = async () => {
+  const checkUserTeam = async (teamsToCheck?: Team[]) => {
     if (!user?.id) return;
 
     try {
-      // Find user's team from the teams list
-      const userTeam = teams.find(
-        (team) => team.ownerId === user.id || (team.members && team.members > 0)
-      ); // Check if user is member
-
-      if (userTeam) {
-        const teamDetails = await teamService.getTeamById(userTeam.id);
-        setUserTeamDetails(teamDetails);
-      } else {
-        setUserTeamDetails(null);
+      const teamsArray = teamsToCheck || teams;
+      
+      // Check each team to see if user is a member (owner or regular member)
+      for (const team of teamsArray) {
+        try {
+          const teamDetails = await teamService.getTeamById(team.id);
+          const isUserMember = teamDetails.members.some(
+            (member) => member.userId === user.id
+          );
+          
+          if (isUserMember) {
+            setUserTeamDetails(teamDetails);
+            return teamDetails;
+          }
+        } catch (error) {
+          // Skip teams that can't be accessed
+          continue;
+        }
       }
+      
+      // If no team found, user is not in any team
+      setUserTeamDetails(null);
+      return null;
     } catch (error) {
       console.error("Failed to check user team:", error);
+      return null;
     }
   };
 
@@ -109,20 +252,30 @@ export const TeamScreen: React.FC = () => {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadTeams(), loadOwnershipTransfers()]);
-    await checkUserTeam();
+    const teamsData = await loadTeams();
+    await Promise.all([
+      checkUserTeam(teamsData), 
+      loadOwnershipTransfers()
+    ]);
     setRefreshing(false);
   };
 
   const handleJoinTeam = async (teamId: string) => {
+    // Check if user is already in a team
+    if (userTeamDetails) {
+      showFeedback("You are already in a team. Leave your current team first.", "error");
+      return;
+    }
+
     try {
       await teamService.joinTeam(teamId);
       showFeedback("Successfully joined team!", "success");
-      await loadTeams();
-      await checkUserTeam();
-    } catch (error) {
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
+    } catch (error: any) {
       console.error("Failed to join team:", error);
-      showFeedback("Failed to join team", "error");
+      const errorMessage = error.response?.data?.error || "Failed to join team";
+      showFeedback(errorMessage, "error");
     }
   };
 
@@ -141,11 +294,16 @@ export const TeamScreen: React.FC = () => {
             try {
               await teamService.leaveTeam(userTeamDetails.id);
               showFeedback("Successfully left team!", "success");
-              await loadTeams();
-              await checkUserTeam();
-            } catch (error) {
+              const updatedTeams = await loadTeams();
+              await checkUserTeam(updatedTeams);
+            } catch (error: any) {
               console.error("Failed to leave team:", error);
-              showFeedback("Failed to leave team", "error");
+              const errorMessage = error.response?.data?.error || "Failed to leave team";
+              if (errorMessage.includes("transfer team ownership")) {
+                showFeedback("You must transfer team ownership before leaving", "error");
+              } else {
+                showFeedback(errorMessage, "error");
+              }
             }
           },
         },
@@ -159,6 +317,12 @@ export const TeamScreen: React.FC = () => {
       return;
     }
 
+    // Check if user is already in a team (only for create mode)
+    if (!editingTeam && userTeamDetails) {
+      showFeedback("You are already in a team. Leave your current team first.", "error");
+      return;
+    }
+
     try {
       const teamData: CreateTeamData = {
         name: newTeamName.trim(),
@@ -166,17 +330,27 @@ export const TeamScreen: React.FC = () => {
         color: selectedColor,
       };
 
-      await teamService.createTeam(teamData);
-      showFeedback("Team created successfully!", "success");
+      if (editingTeam) {
+        // Edit mode - update existing team
+        await teamService.updateTeam(editingTeam.id, teamData);
+        showFeedback("Team updated successfully!", "success");
+      } else {
+        // Create mode - create new team
+        await teamService.createTeam(teamData);
+        showFeedback("Team created successfully!", "success");
+      }
+
       setShowCreateForm(false);
+      setEditingTeam(null);
       setNewTeamName("");
       setNewTeamDescription("");
       setSelectedColor("#FF6B6B");
-      await loadTeams();
-      await checkUserTeam();
-    } catch (error) {
-      console.error("Failed to create team:", error);
-      showFeedback("Failed to create team", "error");
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
+    } catch (error: any) {
+      console.error("Failed to save team:", error);
+      const errorMessage = error.response?.data?.error || "Failed to save team";
+      showFeedback(errorMessage, "error");
     }
   };
 
@@ -245,12 +419,53 @@ export const TeamScreen: React.FC = () => {
         "success"
       );
       await loadOwnershipTransfers();
-      await loadTeams();
-      await checkUserTeam();
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
     } catch (error) {
       console.error("Failed to respond to ownership transfer:", error);
       showFeedback("Failed to respond to ownership transfer", "error");
     }
+  };
+
+  const handleEditTeam = () => {
+    if (!userTeamDetails) return;
+    
+    // Set editing mode
+    setEditingTeam(userTeamDetails);
+    setShowTransferForm(false); // Close transfer form if open
+    setShowCreateForm(true); // Open form for editing
+    // Pre-populate with current team data
+    setNewTeamName(userTeamDetails.name);
+    setNewTeamDescription(userTeamDetails.description || "");
+    setSelectedColor(userTeamDetails.color || "#FF6B6B");
+  };
+
+  const handleDeleteTeam = () => {
+    if (!userTeamDetails) return;
+
+    Alert.alert(
+      "Delete Team",
+      `Are you sure you want to delete "${userTeamDetails.name}"? This action cannot be undone and will remove all team members.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await teamService.deleteTeam(userTeamDetails.id);
+              showFeedback("Team deleted successfully!", "success");
+              const updatedTeams = await loadTeams();
+              await checkUserTeam(updatedTeams);
+            } catch (error: any) {
+              console.error("Failed to delete team:", error);
+              const errorMessage = error.response?.data?.error || "Failed to delete team";
+              showFeedback(errorMessage, "error");
+            }
+          },
+        },
+      ]
+    );
   };
 
   const isTeamOwner =
@@ -258,7 +473,10 @@ export const TeamScreen: React.FC = () => {
   const userTeam = teams.find(
     (team) => team.ownerId === user?.id || userTeamDetails?.id === team.id
   );
-  const availableTeams = userTeam ? [] : teams;
+  // Show other teams only if user is not in any team, or if they explicitly want to browse
+  const availableTeams = userTeamDetails ? 
+    (showAllTeams ? teams.filter(team => team.id !== userTeamDetails.id) : []) : 
+    teams;
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1000);
@@ -291,12 +509,18 @@ export const TeamScreen: React.FC = () => {
             </View>
           </View>
 
-          <View
-            style={[
-              styles.teamCard,
-              { borderLeftColor: userTeamDetails.color || "#FF6B6B" },
-            ]}
+          <SwipeableTeamCard
+            team={userTeamDetails}
+            isOwner={isTeamOwner || false}
+            onEdit={handleEditTeam}
+            onDelete={handleDeleteTeam}
           >
+            <View
+              style={[
+                styles.teamCard,
+                { borderLeftColor: userTeamDetails.color || "#FF6B6B" },
+              ]}
+            >
             <View style={styles.teamHeader}>
               <View style={styles.teamInfo}>
                 <Text style={styles.teamName}>{userTeamDetails.name}</Text>
@@ -362,40 +586,64 @@ export const TeamScreen: React.FC = () => {
 
               {isTeamOwner && (
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={[
+                    styles.actionButton,
+                    userTeamDetails.members.length > 1 && styles.prominentButton
+                  ]}
                   onPress={() => setShowTransferForm(!showTransferForm)}
                 >
                   <Ionicons
                     name="repeat"
                     size={16}
-                    color={theme.colors.accent}
+                    color={userTeamDetails.members.length > 1 ? theme.colors.background : theme.colors.accent}
                   />
-                  <Text style={styles.actionButtonText}>
+                  <Text style={[
+                    styles.actionButtonText,
+                    userTeamDetails.members.length > 1 && styles.prominentButtonText
+                  ]}>
                     Transfer Ownership
+                    {userTeamDetails.members.length > 1 && " (Required to leave)"}
                   </Text>
                 </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.leaveButton]}
-                onPress={handleLeaveTeam}
-              >
-                <Ionicons
-                  name="exit-outline"
-                  size={16}
-                  color={theme.colors.error}
-                />
-                <Text
-                  style={[
-                    styles.actionButtonText,
-                    { color: theme.colors.error },
-                  ]}
+              {/* Leave Team Button or Transfer Ownership Message */}
+              {isTeamOwner && userTeamDetails.members.length > 1 ? (
+                // Owner with other members - show message instead of leave button
+                <View style={[styles.actionButton, styles.disabledButton]}>
+                  <Ionicons
+                    name="information-circle"
+                    size={16}
+                    color={theme.colors.textLight}
+                  />
+                  <Text style={styles.disabledButtonText}>
+                    Transfer ownership to leave
+                  </Text>
+                </View>
+              ) : (
+                // Regular member or owner without other members - show leave button
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.leaveButton]}
+                  onPress={handleLeaveTeam}
                 >
-                  Leave Team
-                </Text>
-              </TouchableOpacity>
+                  <Ionicons
+                    name="exit-outline"
+                    size={16}
+                    color={theme.colors.error}
+                  />
+                  <Text
+                    style={[
+                      styles.actionButtonText,
+                      { color: theme.colors.error },
+                    ]}
+                  >
+                    Leave Team
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
+          </SwipeableTeamCard>
 
           {/* Team Members List */}
           {showMemberList && (
@@ -428,8 +676,10 @@ export const TeamScreen: React.FC = () => {
             <View style={styles.transferForm}>
               <Text style={styles.transferTitle}>Transfer Ownership</Text>
               <Text style={styles.transferDescription}>
-                Enter the username of the team member you want to transfer
-                ownership to:
+                As the team owner, you must transfer ownership to another member before you can leave the team.
+              </Text>
+              <Text style={styles.transferDescription}>
+                Enter the username of the team member you want to transfer ownership to:
               </Text>
 
               <View style={styles.inputGroup}>
@@ -459,6 +709,71 @@ export const TeamScreen: React.FC = () => {
               </View>
             </View>
           )}
+
+          {/* Edit Team Form (only shown when editing) */}
+          {showCreateForm && editingTeam && (
+            <View style={styles.createForm}>
+              <Text style={styles.sectionTitle}>Edit Team</Text>
+              
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Team Name *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={newTeamName}
+                  onChangeText={setNewTeamName}
+                  placeholder="Enter team name"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Description</Text>
+                <TextInput
+                  style={[styles.textInput, styles.textArea]}
+                  value={newTeamDescription}
+                  onChangeText={setNewTeamDescription}
+                  placeholder="Enter team description"
+                  multiline
+                  numberOfLines={3}
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Team Color</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.colorPicker}
+                >
+                  {predefinedColors.map((color) => (
+                    <TouchableOpacity
+                      key={color}
+                      style={[
+                        styles.colorOption,
+                        { backgroundColor: color },
+                        selectedColor === color && styles.selectedColor,
+                      ]}
+                      onPress={() => setSelectedColor(color)}
+                    />
+                  ))}
+                </ScrollView>
+              </View>
+
+              <View style={styles.formActions}>
+                <Button
+                  title="Cancel"
+                  onPress={() => {
+                    setShowCreateForm(false);
+                    setEditingTeam(null);
+                    setNewTeamName("");
+                    setNewTeamDescription("");
+                    setSelectedColor("#FF6B6B");
+                  }}
+                  variant="outline"
+                />
+                <Button title="Update Team" onPress={handleCreateTeam} />
+              </View>
+            </View>
+          )}
         </View>
       ) : (
         /* No Team - Show Create/Join Options */
@@ -481,7 +796,7 @@ export const TeamScreen: React.FC = () => {
           </TouchableOpacity>
 
           {/* Create Team Form */}
-          {showCreateForm && (
+          {showCreateForm && !editingTeam && (
             <View style={styles.createForm}>
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Team Name *</Text>
@@ -531,15 +846,47 @@ export const TeamScreen: React.FC = () => {
                   title="Cancel"
                   onPress={() => {
                     setShowCreateForm(false);
+                    setEditingTeam(null);
                     setNewTeamName("");
                     setNewTeamDescription("");
                     setSelectedColor("#FF6B6B");
                   }}
                   variant="outline"
                 />
-                <Button title="Create Team" onPress={handleCreateTeam} />
+                <Button 
+                  title={editingTeam ? "Update Team" : "Create Team"} 
+                  onPress={handleCreateTeam} 
+                />
               </View>
             </View>
+          )}
+        </View>
+      )}
+
+      {/* Browse Other Teams Section - Only show if user has a team */}
+      {userTeamDetails && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Other Teams</Text>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => setShowAllTeams(!showAllTeams)}
+            >
+              <Ionicons
+                name={showAllTeams ? "eye-off" : "eye"}
+                size={16}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.actionButtonText}>
+                {showAllTeams ? "Hide Teams" : "Browse Teams"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          {showAllTeams && (
+            <Text style={styles.sectionDescription}>
+              You can view other teams but cannot join them while you're already in a team.
+            </Text>
           )}
         </View>
       )}
@@ -641,10 +988,18 @@ export const TeamScreen: React.FC = () => {
               </View>
 
               <View style={styles.teamActions}>
-                <Button
-                  title="Join Team"
-                  onPress={() => handleJoinTeam(team.id)}
-                />
+                {userTeamDetails ? (
+                  <View style={styles.disabledButton}>
+                    <Text style={styles.disabledButtonText}>
+                      Already in a team
+                    </Text>
+                  </View>
+                ) : (
+                  <Button
+                    title="Join Team"
+                    onPress={() => handleJoinTeam(team.id)}
+                  />
+                )}
               </View>
             </View>
           ))}
@@ -948,5 +1303,60 @@ const styles = StyleSheet.create({
     color: theme.colors.textLight,
     textAlign: "center",
     lineHeight: 20,
+  },
+  disabledButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 8,
+    backgroundColor: theme.colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  disabledButtonText: {
+    fontSize: 14,
+    color: theme.colors.textLight,
+    fontWeight: "500",
+  },
+  prominentButton: {
+    backgroundColor: theme.colors.accent,
+  },
+  prominentButtonText: {
+    color: theme.colors.background,
+    fontWeight: "600",
+  },
+  swipeableContainer: {
+    position: "relative",
+    marginBottom: 12,
+  },
+  swipeableCard: {
+    backgroundColor: theme.colors.surface,
+    zIndex: 10,
+  },
+  hiddenAction: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 80,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 5,
+  },
+  editAction: {
+    left: 0,
+    backgroundColor: theme.colors.primary,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+  },
+  deleteAction: {
+    right: 0,
+    backgroundColor: theme.colors.error,
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  hiddenActionText: {
+    color: theme.colors.background,
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 4,
   },
 });

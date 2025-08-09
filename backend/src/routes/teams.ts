@@ -63,6 +63,9 @@ router.put(
   teamsController.updateTeam
 );
 
+// Delete team
+router.delete('/:id', teamsController.deleteTeam);
+
 // Join team
 router.post('/:id/join', teamsController.joinTeam);
 

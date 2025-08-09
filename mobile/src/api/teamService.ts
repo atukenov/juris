@@ -131,4 +131,9 @@ export const teamService = {
     );
     return data;
   },
+
+  async deleteTeam(teamId: string) {
+    const { data } = await api.delete<any>(`/teams/${teamId}`);
+    return data;
+  },
 };

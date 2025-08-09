@@ -30,18 +30,38 @@ export const createTeam = async (req: Request, res: Response) => {
     const client = await pool.connect();
     try {
       // Check if user already owns a team
-      const existingTeamQuery = `
+      const existingOwnedTeamQuery = `
         SELECT id, name FROM teams 
         WHERE owner_id = $1 AND is_active = true
       `;
-      const existingTeamResult = await client.query(existingTeamQuery, [
-        ownerId,
-      ]);
+      const existingOwnedTeamResult = await client.query(
+        existingOwnedTeamQuery,
+        [ownerId]
+      );
 
-      if (existingTeamResult.rows.length > 0) {
+      if (existingOwnedTeamResult.rows.length > 0) {
         return res.status(400).json({
           error:
             'You can only own one team at a time. Leave your current team first.',
+        });
+      }
+
+      // Check if user is already a member of any team
+      const existingMembershipQuery = `
+        SELECT tm.team_id, t.name 
+        FROM team_members tm
+        JOIN teams t ON tm.team_id = t.id
+        WHERE tm.user_id = $1 AND t.is_active = true
+      `;
+      const existingMembershipResult = await client.query(
+        existingMembershipQuery,
+        [ownerId]
+      );
+
+      if (existingMembershipResult.rows.length > 0) {
+        const existingTeam = existingMembershipResult.rows[0];
+        return res.status(400).json({
+          error: `You are already a member of team "${existingTeam.name}". Leave your current team first.`,
         });
       }
 
@@ -321,7 +341,26 @@ export const joinTeam = async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'Team not found' });
       }
 
-      // Check if user is already a member
+      // Check if user is already a member of any team
+      const existingMembershipQuery = `
+        SELECT tm.team_id, t.name 
+        FROM team_members tm
+        JOIN teams t ON tm.team_id = t.id
+        WHERE tm.user_id = $1 AND t.is_active = true
+      `;
+      const existingMembershipResult = await client.query(
+        existingMembershipQuery,
+        [userId]
+      );
+
+      if (existingMembershipResult.rows.length > 0) {
+        const existingTeam = existingMembershipResult.rows[0];
+        return res.status(400).json({
+          error: `You are already a member of team "${existingTeam.name}". Leave your current team first.`,
+        });
+      }
+
+      // Check if user is already a member of this specific team
       const memberQuery = `
         SELECT id FROM team_members WHERE team_id = $1 AND user_id = $2
       `;
@@ -760,5 +799,69 @@ export const getAvailableColors = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Get available colors error:', error);
     res.status(500).json({ error: 'Error fetching available colors' });
+  }
+};
+
+// Delete team (only owner can delete)
+export const deleteTeam = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const client = await pool.connect();
+    try {
+      // Start transaction
+      await client.query('BEGIN');
+
+      // Check if team exists and user is owner
+      const teamQuery = `
+        SELECT id, name, owner_id FROM teams 
+        WHERE id = $1 AND is_active = true
+      `;
+      const teamResult = await client.query(teamQuery, [id]);
+
+      if (teamResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+
+      const team = teamResult.rows[0];
+      if (team.owner_id !== parseInt(userId)) {
+        return res.status(403).json({ 
+          error: 'Only team owner can delete the team' 
+        });
+      }
+
+      // Delete all team members
+      const deleteMembersQuery = `
+        DELETE FROM team_members WHERE team_id = $1
+      `;
+      await client.query(deleteMembersQuery, [id]);
+
+      // Mark team as inactive (soft delete)
+      const deleteTeamQuery = `
+        UPDATE teams 
+        SET is_active = false, updated_at = NOW()
+        WHERE id = $1
+      `;
+      await client.query(deleteTeamQuery, [id]);
+
+      await client.query('COMMIT');
+
+      res.json({ 
+        message: `Team "${team.name}" has been deleted successfully` 
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Delete team error:', error);
+    res.status(500).json({ error: 'Error deleting team' });
   }
 };
