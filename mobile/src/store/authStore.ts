@@ -5,6 +5,14 @@ interface User {
   id: string;
   email: string;
   username: string;
+  firstName?: string;
+  lastName?: string;
+  currentTeam?: {
+    id: string;
+    name: string;
+    color: string;
+    role: string;
+  } | null;
 }
 
 interface AuthState {

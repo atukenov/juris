@@ -1,17 +1,22 @@
 import { Ionicons } from "@expo/vector-icons";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import React from "react";
+import { View } from "react-native";
 import { MapScreen } from "../screens/MapScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { RunScreen } from "../screens/RunScreen";
 import { TeamScreen } from "../screens/TeamScreen";
 import { ChatScreen } from "../screens/ChatScreen";
+import { TabBarBadge } from "../components/TabBarBadge";
+import { useChatStore } from "../store/chatStore";
 import { theme } from "../theme/theme";
 import { RootStackParamList } from "./types";
 
 const Tab = createBottomTabNavigator<RootStackParamList>();
 
 export const MainNavigator = () => {
+  const { unreadCount } = useChatStore();
+
   return (
     <Tab.Navigator
       screenOptions={{
@@ -64,7 +69,10 @@ export const MainNavigator = () => {
         component={ChatScreen}
         options={{
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles" size={size} color={color} />
+            <View>
+              <Ionicons name="chatbubbles" size={size} color={color} />
+              <TabBarBadge count={unreadCount} />
+            </View>
           ),
         }}
       />

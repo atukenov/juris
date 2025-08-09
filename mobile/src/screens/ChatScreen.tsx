@@ -11,7 +11,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useChatStore } from '../store/chatStore';
 import { useAuthStore } from '../store/authStore';
-import { useTeamStore } from '../store/teamStore';
 import { useSocket } from '../hooks/useSocket';
 import { theme } from '../theme/theme';
 import { LoadingOverlay } from '../components/LoadingOverlay';
@@ -34,7 +33,7 @@ export const ChatScreen = () => {
   const typingTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const { user } = useAuthStore();
-  const { currentTeam } = useTeamStore();
+  const currentTeam = user?.currentTeam;
   const { 
     messages, 
     isLoading, 
@@ -43,6 +42,8 @@ export const ChatScreen = () => {
     fetchMessages, 
     sendMessage: sendMessageStore,
     addReaction: addReactionStore,
+    markAsRead,
+    fetchUnreadCount,
     clearError 
   } = useChatStore();
   
@@ -51,8 +52,19 @@ export const ChatScreen = () => {
   useEffect(() => {
     if (currentTeam) {
       fetchMessages();
+      fetchUnreadCount();
     }
-  }, [currentTeam, fetchMessages]);
+  }, [currentTeam, fetchMessages, fetchUnreadCount]);
+
+  useEffect(() => {
+    if (messages.length > 0 && currentTeam) {
+      const latestMessage = messages[messages.length - 1];
+      if (latestMessage.user_id !== user?.id) {
+        markAsRead(latestMessage.id);
+        fetchUnreadCount();
+      }
+    }
+  }, [messages, currentTeam, user?.id, markAsRead, fetchUnreadCount]);
 
   useEffect(() => {
     if (error) {

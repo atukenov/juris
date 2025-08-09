@@ -6,6 +6,7 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
   typingUsers: string[];
+  unreadCount: number;
   
   fetchMessages: () => Promise<void>;
   sendMessage: (message: string) => Promise<void>;
@@ -13,6 +14,9 @@ interface ChatState {
   addMessage: (message: ChatMessage) => void;
   updateReactions: (messageId: number, reactions: any[]) => void;
   setTypingUsers: (users: string[]) => void;
+  markAsRead: (messageId: number) => Promise<void>;
+  fetchUnreadCount: () => Promise<void>;
+  setUnreadCount: (count: number) => void;
   clearError: () => void;
 }
 
@@ -21,6 +25,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: false,
   error: null,
   typingUsers: [],
+  unreadCount: 0,
 
   fetchMessages: async () => {
     set({ isLoading: true, error: null });
@@ -72,6 +77,29 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setTypingUsers: (users: string[]) => {
     set({ typingUsers: users });
+  },
+
+  markAsRead: async (messageId: number) => {
+    try {
+      await chatService.markAsRead(messageId);
+    } catch (error) {
+      set({
+        error: error instanceof Error ? error.message : "Failed to mark as read",
+      });
+    }
+  },
+
+  fetchUnreadCount: async () => {
+    try {
+      const { unreadCount } = await chatService.getUnreadCount();
+      set({ unreadCount });
+    } catch (error) {
+      console.error('Failed to fetch unread count:', error);
+    }
+  },
+
+  setUnreadCount: (count: number) => {
+    set({ unreadCount: count });
   },
 
   clearError: () => {
