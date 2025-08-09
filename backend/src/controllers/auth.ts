@@ -207,8 +207,6 @@ export const getProfile: RequestHandler = async (
               role: teamResult.rows[0].role,
             }
           : null;
-
-      console.log(user.id, 'team - ', currentTeam);
       return res.json({
         id: userRow.id,
         username: userRow.username,

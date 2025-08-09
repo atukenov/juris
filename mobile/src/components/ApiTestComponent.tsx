@@ -14,7 +14,6 @@ export const ApiTestComponent = () => {
     try {
       // Test health endpoint using fetch
       const response = await fetch("http://192.168.100.46:3000/health");
-      console.log("API Health Response:", response);
       setConnectionStatus(`✅ Connected: ${response.status}`);
     } catch (error: any) {
       console.error("API Connection Error:", error);

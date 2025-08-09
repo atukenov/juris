@@ -14,7 +14,7 @@ export const useSocket = () => {
         if (!token) return;
 
         const socket = io(
-          process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.46:6379",
+          process.env.EXPO_PUBLIC_API_URL || "http://192.168.100.46:3000",
           {
             auth: { token },
           }
