@@ -7,6 +7,7 @@ import authRoutes from './routes/auth';
 import captureRoutes from './routes/captures';
 import teamRoutes from './routes/teams';
 import territoryRoutes from './routes/territories';
+import chatRoutes from './routes/chat';
 
 // Load environment variables
 const envPath = path.join(__dirname, '..', '.env');
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/teams', teamRoutes);
 app.use('/api/territories', territoryRoutes);
 app.use('/api/captures', captureRoutes);
+app.use('/api/chat', chatRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
