@@ -1,9 +1,9 @@
 import { createAdapter } from '@socket.io/redis-adapter';
 import { Server } from 'http';
 import Redis from 'ioredis';
+import jwt from 'jsonwebtoken';
 import { Server as SocketServer } from 'socket.io';
 import { pool } from '../lib/database';
-import jwt from 'jsonwebtoken';
 
 interface LocationData {
   lat: number;
@@ -100,6 +100,7 @@ export class RealTimeService {
 
       // Handle emoji reaction
       socket.on('addReaction', async (data) => {
+        console.log('Adding reaction');
         await this.handleReaction(userId, userTeam?.teamId, data);
       });
 
@@ -113,7 +114,10 @@ export class RealTimeService {
   private validateToken(token: string): number | null {
     try {
       if (!token) return null;
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET || 'your-secret-key'
+      ) as any;
       return decoded.userId || decoded.id;
     } catch {
       return null;
@@ -186,10 +190,9 @@ export class RealTimeService {
     try {
       const client = await pool.connect();
       try {
-        await client.query(
-          'DELETE FROM chat_typing WHERE user_id = $1',
-          [userId]
-        );
+        await client.query('DELETE FROM chat_typing WHERE user_id = $1', [
+          userId,
+        ]);
       } finally {
         client.release();
       }
@@ -263,7 +266,7 @@ export class RealTimeService {
         };
 
         this.io.to(`team:${teamId}`).emit('newMessage', messageData);
-        
+
         await this.broadcastUnreadCountUpdate(teamId, userId);
       } finally {
         client.release();
@@ -394,7 +397,10 @@ export class RealTimeService {
     }
   }
 
-  private async broadcastUnreadCountUpdate(teamId: string, senderUserId: number) {
+  private async broadcastUnreadCountUpdate(
+    teamId: string,
+    senderUserId: number
+  ) {
     try {
       const client = await pool.connect();
       try {
@@ -403,8 +409,11 @@ export class RealTimeService {
           JOIN teams t ON tm.team_id = t.id
           WHERE tm.team_id = $1 AND tm.user_id != $2 AND t.is_active = true
         `;
-        const membersResult = await client.query(membersQuery, [teamId, senderUserId]);
-        
+        const membersResult = await client.query(membersQuery, [
+          teamId,
+          senderUserId,
+        ]);
+
         for (const member of membersResult.rows) {
           const countQuery = `
             SELECT COUNT(*) as unread_count
@@ -414,12 +423,15 @@ export class RealTimeService {
             AND cm.user_id != $1
             AND (crs.last_read_message_id IS NULL OR cm.id > crs.last_read_message_id)
           `;
-          const countResult = await client.query(countQuery, [member.user_id, teamId]);
+          const countResult = await client.query(countQuery, [
+            member.user_id,
+            teamId,
+          ]);
           const unreadCount = parseInt(countResult.rows[0].unread_count);
-          
+
           this.io.to(`team:${teamId}`).emit('unreadCountUpdate', {
             userId: member.user_id,
-            unreadCount
+            unreadCount,
           });
         }
       } finally {

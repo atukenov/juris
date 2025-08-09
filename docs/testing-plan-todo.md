@@ -16,5 +16,8 @@
 - [x] The team card need to be swiped right and delete button appears. and swipe left edit button appears.
 - [x] After joining someone team, create team button need to be hidden and disabled. also show that already member, and show information about the team, and button to leave the team.
 - [x] Can be joined only one team.
-- [ ] Login can be done by email and by username
-- [ ] API must be ip address of the device or the address of expo. (.env, or dynamic change)
+- [x] Login can be done by email and by username
+- [x] API must be ip address of the device or the address of expo. (.env, or dynamic change)
+- [ ] Reaction is not updating, maybe problem not saving in database.
+- [ ] Make more UI/UX design for the chat
+- [ ] make screens code less line, by extracting something as common, or something else.
