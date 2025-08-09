@@ -22,4 +22,10 @@ router.post('/messages/:messageId/reactions', [
   body('emoji').isIn(['👍', '❤️', '😂', '😮', '😢', '😡'])
 ], chatController.addReaction);
 
+router.post('/messages/read', [
+  body('messageId').isInt({ min: 1 })
+], chatController.markAsRead);
+
+router.get('/unread-count', chatController.getUnreadCount);
+
 export default router;

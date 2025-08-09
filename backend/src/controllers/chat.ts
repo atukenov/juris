@@ -180,3 +180,90 @@ export const addReaction = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error adding reaction' });
   }
 };
+
+export const markAsRead = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    const { messageId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const client = await pool.connect();
+    try {
+      const teamQuery = `
+        SELECT tm.team_id FROM team_members tm
+        JOIN teams t ON tm.team_id = t.id
+        JOIN chat_messages cm ON cm.team_id = t.id
+        WHERE tm.user_id = $1 AND cm.id = $2 AND t.is_active = true
+      `;
+      const teamResult = await client.query(teamQuery, [userId, messageId]);
+
+      if (teamResult.rows.length === 0) {
+        return res.status(403).json({ error: 'Cannot mark this message as read' });
+      }
+
+      const teamId = teamResult.rows[0].team_id;
+
+      const updateQuery = `
+        INSERT INTO chat_read_status (team_id, user_id, last_read_message_id, last_read_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (team_id, user_id) 
+        DO UPDATE SET last_read_message_id = $3, last_read_at = NOW()
+      `;
+      await client.query(updateQuery, [teamId, userId, messageId]);
+
+      res.json({ success: true });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Mark as read error:', error);
+    res.status(500).json({ error: 'Error marking message as read' });
+  }
+};
+
+export const getUnreadCount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const client = await pool.connect();
+    try {
+      const teamQuery = `
+        SELECT tm.team_id FROM team_members tm
+        JOIN teams t ON tm.team_id = t.id
+        WHERE tm.user_id = $1 AND t.is_active = true
+      `;
+      const teamResult = await client.query(teamQuery, [userId]);
+
+      if (teamResult.rows.length === 0) {
+        return res.json({ unreadCount: 0 });
+      }
+
+      const teamId = teamResult.rows[0].team_id;
+
+      const countQuery = `
+        SELECT COUNT(*) as unread_count
+        FROM chat_messages cm
+        LEFT JOIN chat_read_status crs ON crs.team_id = cm.team_id AND crs.user_id = $1
+        WHERE cm.team_id = $2 
+        AND cm.user_id != $1
+        AND (crs.last_read_message_id IS NULL OR cm.id > crs.last_read_message_id)
+      `;
+      const countResult = await client.query(countQuery, [userId, teamId]);
+
+      const unreadCount = parseInt(countResult.rows[0].unread_count);
+      res.json({ unreadCount });
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Get unread count error:', error);
+    res.status(500).json({ error: 'Error fetching unread count' });
+  }
+};

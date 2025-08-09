@@ -43,4 +43,19 @@ export const chatService = {
     );
     return data;
   },
+
+  async markAsRead(messageId: number) {
+    const { data } = await api.post<{ success: boolean }>(
+      "/chat/messages/read",
+      { messageId }
+    );
+    return data;
+  },
+
+  async getUnreadCount() {
+    const { data } = await api.get<{ unreadCount: number }>(
+      "/chat/unread-count"
+    );
+    return data;
+  },
 };
