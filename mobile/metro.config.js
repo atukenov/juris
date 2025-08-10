@@ -4,10 +4,10 @@ const config = getDefaultConfig(__dirname);
 
 config.resolver.platforms = ['ios', 'android', 'native', 'web'];
 
-config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
+config.resolver.alias = {
+  'react-native-maps': false,
+};
 
-config.resolver.blockList = [
-  /node_modules\/react-native-maps\/lib\/.*\.js$/,
-];
+config.resolver.resolverMainFields = ['react-native', 'browser', 'main'];
 
 module.exports = config;
