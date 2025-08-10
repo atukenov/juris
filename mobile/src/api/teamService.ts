@@ -136,4 +136,9 @@ export const teamService = {
     const { data } = await api.delete<any>(`/teams/${teamId}`);
     return data;
   },
+
+  async removeMember(teamId: string, userId: string) {
+    const { data } = await api.delete<any>(`/teams/${teamId}/members/${userId}`);
+    return data;
+  },
 };

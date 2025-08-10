@@ -865,3 +865,78 @@ export const deleteTeam = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Error deleting team' });
   }
 };
+
+// Remove team member (owner only)
+export const removeMember = async (req: Request, res: Response) => {
+  try {
+    const { id: teamId, userId: memberUserId } = req.params;
+    const ownerId = req.user?.id;
+
+    if (!ownerId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // Verify current user is the team owner
+      const teamQuery = `
+        SELECT id, name, owner_id FROM teams 
+        WHERE id = $1 AND is_active = true
+      `;
+      const teamResult = await client.query(teamQuery, [teamId]);
+
+      if (teamResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Team not found' });
+      }
+
+      const team = teamResult.rows[0];
+      if (team.owner_id !== parseInt(ownerId)) {
+        return res.status(403).json({
+          error: 'Only team owner can remove members',
+        });
+      }
+
+      // Check if target user is a member
+      const memberQuery = `
+        SELECT id, role FROM team_members 
+        WHERE team_id = $1 AND user_id = $2
+      `;
+      const memberResult = await client.query(memberQuery, [teamId, memberUserId]);
+
+      if (memberResult.rows.length === 0) {
+        return res.status(404).json({ error: 'Member not found in team' });
+      }
+
+      const member = memberResult.rows[0];
+      
+      if (parseInt(memberUserId) === parseInt(ownerId)) {
+        return res.status(400).json({
+          error: 'Owner cannot remove themselves. Transfer ownership first.',
+        });
+      }
+
+      // Remove member from team
+      const removeQuery = `
+        DELETE FROM team_members 
+        WHERE team_id = $1 AND user_id = $2
+      `;
+      await client.query(removeQuery, [teamId, memberUserId]);
+
+      await client.query('COMMIT');
+
+      res.json({
+        message: 'Member removed from team successfully',
+      });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Remove member error:', error);
+    res.status(500).json({ error: 'Error removing member from team' });
+  }
+};

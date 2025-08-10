@@ -5,6 +5,8 @@ import {
   FlatList,
   StyleSheet,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useChatStore } from '../store/chatStore';
@@ -131,7 +133,10 @@ export const ChatScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      style={styles.container}
+    >
       {isLoading && <LoadingOverlay visible={true} />}
       
       <FlatList
@@ -154,7 +159,7 @@ export const ChatScreen = () => {
         onChangeText={handleTextChange}
         onSend={handleSendMessage}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 };
 
