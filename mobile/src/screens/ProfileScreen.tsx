@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -7,13 +8,16 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Ionicons } from '@expo/vector-icons';
-import { Button } from "../components/Button";
 import { ApiTestComponent } from "../components/ApiTestComponent";
+import { Button } from "../components/Button";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
-import { getProfileDisplayName, formatStats, validateProfileForm } from "../utils/profileUtils";
+import {
+  formatStats,
+  getProfileDisplayName,
+  validateProfileForm,
+} from "../utils/profileUtils";
 
 type FormData = {
   username: string;
@@ -52,7 +56,7 @@ export const ProfileScreen = () => {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
       });
-      
+
       setUserStats({
         territoriesCaptures: Math.floor(Math.random() * 50),
         teamJoinDate: user.currentTeam ? new Date().toISOString() : null,
@@ -64,7 +68,7 @@ export const ProfileScreen = () => {
   const handleUpdate = async () => {
     const validation = validateProfileForm(formData);
     if (!validation.isValid) {
-      const errorMessage = Object.values(validation.errors).join('\n');
+      const errorMessage = Object.values(validation.errors).join("\n");
       Alert.alert("Error", errorMessage);
       return;
     }
@@ -73,6 +77,8 @@ export const ProfileScreen = () => {
       await updateProfile({
         username: formData.username,
         email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
       });
       setIsEditing(false);
       Alert.alert("Success", "Profile updated successfully");
@@ -97,11 +103,15 @@ export const ProfileScreen = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {/* API Test Component */}
       <ApiTestComponent />
-      
+
       {/* Profile Header */}
       <View style={styles.header}>
         <View style={styles.avatarContainer}>
-          <Ionicons name="person-circle" size={80} color={theme.colors.primary} />
+          <Ionicons
+            name="person-circle"
+            size={80}
+            color={theme.colors.primary}
+          />
         </View>
         <Text style={styles.displayName}>{displayName}</Text>
         <Text style={styles.username}>@{user?.username}</Text>
@@ -117,8 +127,14 @@ export const ProfileScreen = () => {
           </View>
           {formattedStats.teamJoinDate && (
             <View style={styles.infoRow}>
-              <Ionicons name="calendar" size={20} color={theme.colors.primary} />
-              <Text style={styles.infoText}>Joined {formattedStats.teamJoinDate}</Text>
+              <Ionicons
+                name="calendar"
+                size={20}
+                color={theme.colors.primary}
+              />
+              <Text style={styles.infoText}>
+                Joined {formattedStats.teamJoinDate}
+              </Text>
             </View>
           )}
         </View>
@@ -138,7 +154,7 @@ export const ProfileScreen = () => {
           </View>
         </View>
       </View>
-      
+
       {/* Profile Form */}
       <View style={styles.form}>
         <Text style={styles.title}>Profile Details</Text>
@@ -257,7 +273,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   header: {
-    alignItems: 'center',
+    alignItems: "center",
     padding: theme.spacing.xl,
     backgroundColor: theme.colors.surface,
   },
@@ -286,8 +302,8 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
   },
   infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: theme.spacing.sm,
   },
   infoText: {
@@ -296,15 +312,15 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
   },
   statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: "row",
+    justifyContent: "space-around",
   },
   statItem: {
-    alignItems: 'center',
+    alignItems: "center",
   },
   statNumber: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: theme.colors.primary,
   },
   statLabel: {
