@@ -10,6 +10,7 @@ export interface Theme {
     border: string;
     error: string;
     success: string;
+    warning: string;
     white: string;
   };
   typography: {
@@ -18,6 +19,10 @@ export interface Theme {
       fontWeight: string;
     };
     h2: {
+      fontSize: number;
+      fontWeight: string;
+    };
+    h3: {
       fontSize: number;
       fontWeight: string;
     };
@@ -57,6 +62,7 @@ export const theme: Theme = {
     border: "#DFE6E9",
     error: "#D63031",
     success: "#00B894",
+    warning: "#FF9500",
     white: "#FFFFFF",
   },
   typography: {
@@ -67,6 +73,10 @@ export const theme: Theme = {
     h2: {
       fontSize: 20,
       fontWeight: "bold",
+    },
+    h3: {
+      fontSize: 18,
+      fontWeight: "600",
     },
     body: {
       fontSize: 16,

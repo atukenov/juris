@@ -7,6 +7,8 @@ import { ProfileScreen } from "../screens/ProfileScreen";
 import { RunScreen } from "../screens/RunScreen";
 import { TeamScreen } from "../screens/TeamScreen";
 import { ChatScreen } from "../screens/ChatScreen";
+import { AchievementsScreen } from "../screens/AchievementsScreen";
+import { LeaderboardScreen } from "../screens/LeaderboardScreen";
 import { TabBarBadge } from "../components/TabBarBadge";
 import { useChatStore } from "../store/chatStore";
 import { theme } from "../theme/theme";
@@ -73,6 +75,26 @@ export const MainNavigator = () => {
               <Ionicons name="chatbubbles" size={size} color={color} />
               <TabBarBadge count={unreadCount} />
             </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Achievements"
+        component={AchievementsScreen}
+        options={{
+          title: "Achievements",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="trophy" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Leaderboard"
+        component={LeaderboardScreen}
+        options={{
+          title: "Leaderboard",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="podium" size={size} color={color} />
           ),
         }}
       />

@@ -12,6 +12,7 @@ import { Button } from "../components/Button";
 import { ApiTestComponent } from "../components/ApiTestComponent";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { useAuthStore } from "../store/authStore";
+import { useGamificationStore } from "../store/gamificationStore";
 import { theme } from "../theme/theme";
 import { getProfileDisplayName, formatStats, validateProfileForm } from "../utils/profileUtils";
 
@@ -30,6 +31,7 @@ interface UserStats {
 
 export const ProfileScreen = () => {
   const { user, updateProfile, logout, isLoading, error } = useAuthStore();
+  const { userStats, userLevel, fetchUserStats, fetchUserLevel, isLoadingStats } = useGamificationStore();
   const [formData, setFormData] = useState<FormData>({
     username: user?.username || "",
     email: user?.email || "",
@@ -38,11 +40,6 @@ export const ProfileScreen = () => {
   });
   const [isEditing, setIsEditing] = useState(false);
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
-  const [userStats, setUserStats] = useState<UserStats>({
-    territoriesCaptures: 0,
-    teamJoinDate: null,
-    totalRuns: 0,
-  });
 
   useEffect(() => {
     if (user) {
@@ -53,13 +50,10 @@ export const ProfileScreen = () => {
         lastName: user.lastName || "",
       });
       
-      setUserStats({
-        territoriesCaptures: Math.floor(Math.random() * 50),
-        teamJoinDate: user.currentTeam ? new Date().toISOString() : null,
-        totalRuns: Math.floor(Math.random() * 100),
-      });
+      fetchUserStats();
+      fetchUserLevel();
     }
-  }, [user]);
+  }, [user, fetchUserStats, fetchUserLevel]);
 
   const handleUpdate = async () => {
     const validation = validateProfileForm(formData);
@@ -127,16 +121,28 @@ export const ProfileScreen = () => {
       {/* Statistics */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Statistics</Text>
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{formattedStats.territories}</Text>
-            <Text style={styles.statLabel}>Territories</Text>
+        {isLoadingStats ? (
+          <Text style={styles.infoText}>Loading statistics...</Text>
+        ) : (
+          <View style={styles.statsContainer}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userStats?.territoriesCaptured || 0}</Text>
+              <Text style={styles.statLabel}>Territories</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userLevel?.currentLevel || 1}</Text>
+              <Text style={styles.statLabel}>Level</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{userStats?.totalPoints || 0}</Text>
+              <Text style={styles.statLabel}>Points</Text>
+            </View>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{Math.round(userStats?.totalDistance || 0)}</Text>
+              <Text style={styles.statLabel}>KM Run</Text>
+            </View>
           </View>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{formattedStats.runs}</Text>
-            <Text style={styles.statLabel}>Total Runs</Text>
-          </View>
-        </View>
+        )}
       </View>
       
       {/* Profile Form */}

@@ -1,4 +1,4 @@
-import { prisma } from '../lib/prisma';
+import { pool } from '../lib/database';
 
 export interface PathPoint {
   lat: number;
@@ -26,39 +26,40 @@ export class GameMechanicsService {
     userId: string,
     energyCost: number
   ): Promise<boolean> {
-    const energy = await prisma.user_energy.findFirst({
-      where: { userId },
-    });
+    const client = await pool.connect();
+    try {
+      const energyQuery = `SELECT * FROM user_energy WHERE user_id = $1`;
+      const energyResult = await client.query(energyQuery, [userId]);
+      
+      const today = new Date().toDateString();
+      if (energyResult.rows.length === 0 || 
+          new Date(energyResult.rows[0].last_reset_date).toDateString() !== today) {
+        
+        const upsertQuery = `
+          INSERT INTO user_energy (user_id, energy_points, last_reset_date)
+          VALUES ($1, 100, CURRENT_DATE)
+          ON CONFLICT (user_id) 
+          DO UPDATE SET energy_points = 100, last_reset_date = CURRENT_DATE
+        `;
+        await client.query(upsertQuery, [userId]);
+        return true;
+      }
 
-    // Reset energy if it's a new day
-    if (!energy || energy.last_reset_date < new Date().setHours(0, 0, 0, 0)) {
-      await prisma.user_energy.upsert({
-        where: { userId },
-        create: {
-          userId,
-          energy_points: 100,
-          last_reset_date: new Date(),
-        },
-        update: {
-          energy_points: 100,
-          last_reset_date: new Date(),
-        },
-      });
+      const energy = energyResult.rows[0];
+      if (energy.energy_points < energyCost) {
+        return false;
+      }
+
+      const updateQuery = `
+        UPDATE user_energy 
+        SET energy_points = energy_points - $1 
+        WHERE user_id = $2
+      `;
+      await client.query(updateQuery, [energyCost, userId]);
       return true;
+    } finally {
+      client.release();
     }
-
-    if (energy.energy_points < energyCost) {
-      return false;
-    }
-
-    await prisma.user_energy.update({
-      where: { id: energy.id },
-      data: {
-        energy_points: energy.energy_points - energyCost,
-      },
-    });
-
-    return true;
   }
 
   // Validate path speed
@@ -82,50 +83,57 @@ export class GameMechanicsService {
     teamId: string,
     territoryId: string
   ): Promise<number> {
-    const activeMembers = await prisma.teamMember.count({
-      where: {
-        teamId,
-        user: {
-          locations: {
-            some: {
-              timestamp: {
-                gte: new Date(Date.now() - 15 * 60 * 1000), // Last 15 minutes
-              },
-            },
-          },
-        },
-      },
-    });
-
-    return Math.min(1 + activeMembers * 0.1, 1.5); // Max 50% bonus
+    const client = await pool.connect();
+    try {
+      const activeMembersQuery = `
+        SELECT COUNT(*) as active_count
+        FROM team_members tm
+        JOIN user_locations ul ON tm.user_id = ul.user_id
+        WHERE tm.team_id = $1 
+        AND ul.timestamp > NOW() - INTERVAL '15 minutes'
+        AND ul.is_active = true
+      `;
+      const result = await client.query(activeMembersQuery, [teamId]);
+      const activeCount = parseInt(result.rows[0].active_count);
+      return Math.min(1 + activeCount * 0.1, 1.5);
+    } finally {
+      client.release();
+    }
   }
 
   // Calculate time and weather bonus
   static async calculateEnvironmentalBonus(
     territoryId: string
   ): Promise<number> {
-    const currentHour = new Date().getHours();
-    const weather = await prisma.weather_conditions.findFirst({
-      where: { territoryId },
-      orderBy: { recorded_at: 'desc' },
-    });
+    const client = await pool.connect();
+    try {
+      const currentHour = new Date().getHours();
+      let bonus = 1;
 
-    let bonus = 1;
+      if (currentHour >= 22 || currentHour < 6) {
+        bonus += 0.2;
+      }
 
-    // Night bonus (22:00 - 06:00)
-    if (currentHour >= 22 || currentHour < 6) {
-      bonus += 0.2;
+      const weatherQuery = `
+        SELECT * FROM weather_conditions 
+        WHERE territory_id = $1 
+        ORDER BY recorded_at DESC 
+        LIMIT 1
+      `;
+      const weatherResult = await client.query(weatherQuery, [territoryId]);
+      
+      if (weatherResult.rows.length > 0) {
+        const weather = weatherResult.rows[0];
+        if (weather.weather_condition.includes('rain')) bonus += 0.15;
+        if (weather.weather_condition.includes('snow')) bonus += 0.25;
+        if (weather.temperature < 0) bonus += 0.2;
+        if (weather.temperature > 30) bonus += 0.15;
+      }
+
+      return bonus;
+    } finally {
+      client.release();
     }
-
-    // Weather bonus
-    if (weather) {
-      if (weather.weather_condition.includes('rain')) bonus += 0.15;
-      if (weather.weather_condition.includes('snow')) bonus += 0.25;
-      if (weather.temperature < 0) bonus += 0.2;
-      if (weather.temperature > 30) bonus += 0.15;
-    }
-
-    return bonus;
   }
 
   // Update territory fortification
@@ -133,31 +141,31 @@ export class GameMechanicsService {
     territoryId: string,
     teamId: string
   ): Promise<void> {
-    const capture = await prisma.territoryCapture.findFirst({
-      where: {
-        territoryId,
-        teamId,
-        isActive: true,
-      },
-    });
+    const client = await pool.connect();
+    try {
+      const captureQuery = `
+        SELECT * FROM territory_captures 
+        WHERE territory_id = $1 AND team_id = $2 AND is_active = true
+      `;
+      const captureResult = await client.query(captureQuery, [territoryId, teamId]);
 
-    if (capture) {
-      const lastFortTime = capture.lastFortificationTime;
-      const now = new Date();
+      if (captureResult.rows.length > 0) {
+        const capture = captureResult.rows[0];
+        const lastFortTime = capture.last_fortification_time;
+        const now = new Date();
 
-      // Can fortify once per 24 hours
-      if (
-        !lastFortTime ||
-        now.getTime() - lastFortTime.getTime() > 24 * 60 * 60 * 1000
-      ) {
-        await prisma.territoryCapture.update({
-          where: { id: capture.id },
-          data: {
-            fortificationLevel: Math.min(capture.fortificationLevel + 1, 5),
-            lastFortificationTime: now,
-          },
-        });
+        if (!lastFortTime || now.getTime() - new Date(lastFortTime).getTime() > 24 * 60 * 60 * 1000) {
+          const updateQuery = `
+            UPDATE territory_captures 
+            SET fortification_level = LEAST(fortification_level + 1, 5),
+                last_fortification_time = NOW()
+            WHERE id = $1
+          `;
+          await client.query(updateQuery, [capture.id]);
+        }
       }
+    } finally {
+      client.release();
     }
   }
 

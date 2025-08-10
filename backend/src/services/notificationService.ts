@@ -1,11 +1,15 @@
 import { pool } from '../lib/database';
 
 interface NotificationData {
-  type: 'team_invite' | 'member_removed' | 'ownership_transfer' | 'territory_captured';
+  type: 'team_invite' | 'member_removed' | 'ownership_transfer' | 'territory_captured' | 'level_up' | 'achievement_unlocked';
   teamId?: string;
   teamName?: string;
   territoryId?: string;
   capturedBy?: string;
+  newLevel?: number;
+  achievementId?: number;
+  achievementName?: string;
+  pointsReward?: number;
 }
 
 interface PushNotification {
