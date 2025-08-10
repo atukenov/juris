@@ -486,7 +486,7 @@ export const TeamScreen: React.FC = () => {
     }
   };
 
-  const isOwner = userTeamDetails && user && isTeamOwner(user, userTeamDetails);
+  const isOwner = !!(userTeamDetails && user && isTeamOwner(user, userTeamDetails));
   const userTeam = teams.find(
     (team) => team.ownerId === user?.id || userTeamDetails?.id === team.id
   );
