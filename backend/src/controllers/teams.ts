@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { pool } from '../lib/database';
+import { notificationService } from '../services/notificationService';
 
 // Predefined team colors
 export const TEAM_COLORS = [
@@ -925,6 +926,16 @@ export const removeMember = async (req: Request, res: Response) => {
       await client.query(removeQuery, [teamId, memberUserId]);
 
       await client.query('COMMIT');
+
+      await notificationService.sendUserNotification(memberUserId, {
+        title: 'Removed from Team',
+        body: `You have been removed from ${team.name}`,
+        data: {
+          type: 'member_removed',
+          teamId: teamId,
+          teamName: team.name
+        }
+      });
 
       res.json({
         message: 'Member removed from team successfully',

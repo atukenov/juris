@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -76,6 +77,27 @@ class NotificationService {
     listener: (response: Notifications.NotificationResponse) => void
   ) {
     return Notifications.addNotificationResponseReceivedListener(listener);
+  }
+
+  async registerPushToken() {
+    try {
+      const token = await this.getExpoPushToken();
+      
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ pushToken: token })
+      });
+      
+      if (response.ok) {
+        console.log('Push token registered successfully');
+      }
+    } catch (error) {
+      console.error('Error registering push token:', error);
+    }
   }
 }
 

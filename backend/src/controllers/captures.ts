@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { pool } from '../lib/database';
 import * as validator from 'express-validator';
+import { notificationService } from '../services/notificationService';
 
 // Захват территории командой
 export const captureTerritory = async (req: Request, res: Response) => {
@@ -152,6 +153,17 @@ export const captureTerritory = async (req: Request, res: Response) => {
 
       const responseResult = await client.query(responseQuery, [capture.id]);
       const captureInfo = responseResult.rows[0];
+
+      await notificationService.sendTeamNotification(teamId, {
+        title: 'Territory Captured!',
+        body: `${captureInfo.captured_by_username} captured ${captureInfo.territory_name}`,
+        data: {
+          type: 'territory_captured',
+          territoryId: capture.territory_id,
+          teamId: capture.team_id,
+          capturedBy: captureInfo.captured_by_username
+        }
+      });
 
       res.status(201).json({
         id: capture.id,

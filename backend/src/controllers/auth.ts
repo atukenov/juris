@@ -229,7 +229,7 @@ export const getProfile: RequestHandler = async (
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const { user } = req as AuthenticatedRequest;
-    const { username, firstName, lastName, email } = req.body;
+    const { username, firstName, lastName, email, pushToken } = req.body;
 
     if (!user?.id) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -243,8 +243,9 @@ export const updateProfile = async (req: Request, res: Response) => {
             first_name = COALESCE($2, first_name),
             last_name = COALESCE($3, last_name),
             email = COALESCE($4, email),
+            push_token = COALESCE($5, push_token),
             updated_at = NOW()
-        WHERE id = $5
+        WHERE id = $6
         RETURNING id, username, email, first_name, last_name
       `;
       const result = await client.query(updateQuery, [
@@ -252,6 +253,7 @@ export const updateProfile = async (req: Request, res: Response) => {
         firstName,
         lastName,
         email,
+        pushToken,
         user.id,
       ]);
 
