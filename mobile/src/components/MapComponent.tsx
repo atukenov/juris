@@ -3,9 +3,11 @@ import { Platform } from 'react-native';
 let MapComponent: any;
 
 if (Platform.OS === 'web') {
-  MapComponent = require('./MapComponentWeb').MapComponentWeb;
+  const { MapComponentWeb } = require('./MapComponentWeb');
+  MapComponent = MapComponentWeb;
 } else {
-  MapComponent = require('./MapComponent.native').MapComponent;
+  const { MapComponent: NativeMapComponent } = require('./MapComponent.native');
+  MapComponent = NativeMapComponent;
 }
 
 export { MapComponent };
