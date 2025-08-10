@@ -83,20 +83,48 @@ class NotificationService {
     try {
       const token = await this.getExpoPushToken();
       
+      const authToken = await AsyncStorage.getItem('token');
+      if (!authToken) {
+        console.log('No auth token available for push token registration');
+        return;
+      }
+      
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${await AsyncStorage.getItem('token')}`
+          'Authorization': `Bearer ${authToken}`
         },
         body: JSON.stringify({ pushToken: token })
       });
       
       if (response.ok) {
         console.log('Push token registered successfully');
+        return token;
+      } else {
+        console.error('Failed to register push token:', response.status);
       }
     } catch (error) {
       console.error('Error registering push token:', error);
+    }
+  }
+
+  async initializeNotifications() {
+    try {
+      await this.requestPermissions();
+      const token = await this.registerPushToken();
+      
+      this.addNotificationReceivedListener((notification) => {
+        console.log('Notification received:', notification);
+      });
+
+      this.addNotificationResponseReceivedListener((response) => {
+        console.log('Notification response:', response);
+      });
+
+      return token;
+    } catch (error) {
+      console.error('Error initializing notifications:', error);
     }
   }
 }
