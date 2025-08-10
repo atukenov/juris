@@ -486,9 +486,7 @@ export const TeamScreen: React.FC = () => {
     }
   };
 
-  const isTeamOwner =
-    userTeamDetails && user && userTeamDetails.ownerId === user.id;
-  const isOwner = isTeamOwner;
+  const isOwner = userTeamDetails && user && isTeamOwner(user, userTeamDetails);
   const userTeam = teams.find(
     (team) => team.ownerId === user?.id || userTeamDetails?.id === team.id
   );
@@ -530,7 +528,7 @@ export const TeamScreen: React.FC = () => {
 
           <SwipeableTeamCard
             team={userTeamDetails}
-            isOwner={isTeamOwner || false}
+            isOwner={isOwner || false}
             onEdit={handleEditTeam}
             onDelete={handleDeleteTeam}
           >
@@ -581,7 +579,7 @@ export const TeamScreen: React.FC = () => {
               <View style={styles.statItem}>
                 <Ionicons name="star" size={16} color={theme.colors.accent} />
                 <Text style={styles.statText}>
-                  {isTeamOwner
+                  {isOwner
                     ? "You (Owner)"
                     : `${userTeamDetails.owner.username} (Owner)`}
                 </Text>
@@ -603,7 +601,7 @@ export const TeamScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              {isTeamOwner && (
+              {isOwner && (
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
@@ -627,7 +625,7 @@ export const TeamScreen: React.FC = () => {
               )}
 
               {/* Leave Team Button or Transfer Ownership Message */}
-              {isTeamOwner && userTeamDetails.members.length > 1 ? (
+              {isOwner && userTeamDetails.members.length > 1 ? (
                 // Owner with other members - show message instead of leave button
                 <View style={[styles.actionButton, styles.disabledButton]}>
                   <Ionicons
