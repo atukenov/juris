@@ -136,29 +136,34 @@ export const ChatScreen = () => {
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={styles.container}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
     >
       {isLoading && <LoadingOverlay visible={true} />}
       
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id.toString()}
-        style={styles.messagesList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-        showsVerticalScrollIndicator={false}
-      />
+      <View style={styles.messagesContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          renderItem={renderMessage}
+          keyExtractor={(item) => item.id.toString()}
+          style={styles.messagesList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
+          showsVerticalScrollIndicator={false}
+        />
+        
+        <TypingIndicator
+          typingUsers={typingUsers}
+          visible={typingUsers.length > 0}
+        />
+      </View>
       
-      <TypingIndicator
-        typingUsers={typingUsers}
-        visible={typingUsers.length > 0}
-      />
-      
-      <ChatInput
-        value={messageText}
-        onChangeText={handleTextChange}
-        onSend={handleSendMessage}
-      />
+      <View style={styles.inputContainer}>
+        <ChatInput
+          value={messageText}
+          onChangeText={handleTextChange}
+          onSend={handleSendMessage}
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -180,8 +185,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: theme.spacing.md,
   },
+  messagesContainer: {
+    flex: 1,
+  },
   messagesList: {
     flex: 1,
     padding: theme.spacing.md,
+  },
+  inputContainer: {
+    backgroundColor: theme.colors.background,
+    paddingBottom: Platform.OS === 'ios' ? 0 : theme.spacing.sm,
   },
 });
