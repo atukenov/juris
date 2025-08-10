@@ -31,7 +31,12 @@ interface AuthState {
   requestPasswordReset: (email: string) => Promise<void>;
   resetPassword: (token: string, newPassword: string) => Promise<void>;
   updateProfile: (
-    data: Partial<{ username: string; email: string }>
+    data: Partial<{
+      username: string;
+      email: string;
+      firstName: string;
+      lastName: string;
+    }>
   ) => Promise<void>;
 }
 
@@ -46,6 +51,15 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { user } = await authService.login({ emailOrUsername, password });
       set({ user, isAuthenticated: true, isLoading: false });
+
+      try {
+        const { notificationService } = await import(
+          "../services/notificationService"
+        );
+        await notificationService.initializeNotifications();
+      } catch (notifError) {
+        console.error("Failed to initialize notifications:", notifError);
+      }
     } catch (error) {
       set({
         error: error instanceof Error ? error.message : "Failed to login",
@@ -89,6 +103,17 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const user = await authService.getProfile();
       set({ user, isAuthenticated: true });
+
+      if (user) {
+        try {
+          const { notificationService } = await import(
+            "../services/notificationService"
+          );
+          await notificationService.initializeNotifications();
+        } catch (notifError) {
+          console.error("Failed to initialize notifications:", notifError);
+        }
+      }
     } catch (error) {
       set({ user: null, isAuthenticated: false });
     } finally {

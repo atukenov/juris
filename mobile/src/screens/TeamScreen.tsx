@@ -20,10 +20,12 @@ import {
   teamService,
 } from "../api/teamService";
 import { Button } from "../components/Button";
+import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { LoadingOverlay } from "../components/LoadingOverlay";
 import { useFeedback } from "../contexts/FeedbackContext";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
+import { isTeamOwner, canManageMembers, getMemberDisplayName, sortMembersByRole } from "../utils/teamUtils";
 
 interface SwipeableTeamCardProps {
   team: TeamDetails;
@@ -168,6 +170,11 @@ export const TeamScreen: React.FC = () => {
   const [newTeamDescription, setNewTeamDescription] = useState("");
   const [selectedColor, setSelectedColor] = useState("#FF6B6B");
   const [transferUsername, setTransferUsername] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
+  const [showRemoveMemberDialog, setShowRemoveMemberDialog] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<any>(null);
+  const [teamToDelete, setTeamToDelete] = useState<TeamDetails | null>(null);
 
   const predefinedColors = [
     "#FF6B35", // Orange
@@ -281,34 +288,7 @@ export const TeamScreen: React.FC = () => {
 
   const handleLeaveTeam = async () => {
     if (!userTeamDetails) return;
-
-    Alert.alert(
-      "Leave Team",
-      `Are you sure you want to leave "${userTeamDetails.name}"?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Leave",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await teamService.leaveTeam(userTeamDetails.id);
-              showFeedback("Successfully left team!", "success");
-              const updatedTeams = await loadTeams();
-              await checkUserTeam(updatedTeams);
-            } catch (error: any) {
-              console.error("Failed to leave team:", error);
-              const errorMessage = error.response?.data?.error || "Failed to leave team";
-              if (errorMessage.includes("transfer team ownership")) {
-                showFeedback("You must transfer team ownership before leaving", "error");
-              } else {
-                showFeedback(errorMessage, "error");
-              }
-            }
-          },
-        },
-      ]
-    );
+    setShowLeaveDialog(true);
   };
 
   const handleCreateTeam = async () => {
@@ -442,34 +422,71 @@ export const TeamScreen: React.FC = () => {
 
   const handleDeleteTeam = () => {
     if (!userTeamDetails) return;
-
-    Alert.alert(
-      "Delete Team",
-      `Are you sure you want to delete "${userTeamDetails.name}"? This action cannot be undone and will remove all team members.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await teamService.deleteTeam(userTeamDetails.id);
-              showFeedback("Team deleted successfully!", "success");
-              const updatedTeams = await loadTeams();
-              await checkUserTeam(updatedTeams);
-            } catch (error: any) {
-              console.error("Failed to delete team:", error);
-              const errorMessage = error.response?.data?.error || "Failed to delete team";
-              showFeedback(errorMessage, "error");
-            }
-          },
-        },
-      ]
-    );
+    setTeamToDelete(userTeamDetails);
+    setShowDeleteDialog(true);
   };
 
-  const isTeamOwner =
-    userTeamDetails && user && userTeamDetails.ownerId === user.id;
+  const confirmDeleteTeam = async () => {
+    if (!teamToDelete) return;
+    
+    try {
+      await teamService.deleteTeam(teamToDelete.id);
+      showFeedback("Team deleted successfully!", "success");
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
+      setShowDeleteDialog(false);
+      setTeamToDelete(null);
+    } catch (error: any) {
+      console.error("Failed to delete team:", error);
+      const errorMessage = error.response?.data?.error || "Failed to delete team";
+      showFeedback(errorMessage, "error");
+    }
+  };
+
+  const confirmLeaveTeam = async () => {
+    if (!userTeamDetails) return;
+    
+    try {
+      await teamService.leaveTeam(userTeamDetails.id);
+      showFeedback("Successfully left team!", "success");
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
+      setShowLeaveDialog(false);
+    } catch (error: any) {
+      console.error("Failed to leave team:", error);
+      const errorMessage = error.response?.data?.error || "Failed to leave team";
+      if (errorMessage.includes("transfer team ownership")) {
+        showFeedback("You must transfer team ownership before leaving", "error");
+      } else {
+        showFeedback(errorMessage, "error");
+      }
+    }
+  };
+
+  const handleRemoveMember = async (member: any) => {
+    if (!userTeamDetails || !isOwner) return;
+    setMemberToRemove(member);
+    setShowRemoveMemberDialog(true);
+  };
+
+  const confirmRemoveMember = async () => {
+    if (!memberToRemove || !userTeamDetails) return;
+    
+    try {
+      await teamService.removeMember(userTeamDetails.id, memberToRemove.userId);
+      showFeedback("Member removed successfully", "success");
+      const updatedTeams = await loadTeams();
+      await checkUserTeam(updatedTeams);
+      setShowRemoveMemberDialog(false);
+      setMemberToRemove(null);
+    } catch (error: any) {
+      console.error("Failed to remove member:", error);
+      const errorMessage = error.response?.data?.error || "Failed to remove member";
+      showFeedback(errorMessage, "error");
+    }
+  };
+
+  const isOwner = !!(userTeamDetails && user && isTeamOwner(user, userTeamDetails));
   const userTeam = teams.find(
     (team) => team.ownerId === user?.id || userTeamDetails?.id === team.id
   );
@@ -511,7 +528,7 @@ export const TeamScreen: React.FC = () => {
 
           <SwipeableTeamCard
             team={userTeamDetails}
-            isOwner={isTeamOwner || false}
+            isOwner={isOwner || false}
             onEdit={handleEditTeam}
             onDelete={handleDeleteTeam}
           >
@@ -562,7 +579,7 @@ export const TeamScreen: React.FC = () => {
               <View style={styles.statItem}>
                 <Ionicons name="star" size={16} color={theme.colors.accent} />
                 <Text style={styles.statText}>
-                  {isTeamOwner
+                  {isOwner
                     ? "You (Owner)"
                     : `${userTeamDetails.owner.username} (Owner)`}
                 </Text>
@@ -584,7 +601,7 @@ export const TeamScreen: React.FC = () => {
                 </Text>
               </TouchableOpacity>
 
-              {isTeamOwner && (
+              {isOwner && (
                 <TouchableOpacity
                   style={[
                     styles.actionButton,
@@ -608,7 +625,7 @@ export const TeamScreen: React.FC = () => {
               )}
 
               {/* Leave Team Button or Transfer Ownership Message */}
-              {isTeamOwner && userTeamDetails.members.length > 1 ? (
+              {isOwner && userTeamDetails.members.length > 1 ? (
                 // Owner with other members - show message instead of leave button
                 <View style={[styles.actionButton, styles.disabledButton]}>
                   <Ionicons
@@ -651,21 +668,36 @@ export const TeamScreen: React.FC = () => {
               <Text style={styles.membersTitle}>
                 Team Members ({userTeamDetails.members.length})
               </Text>
-              {userTeamDetails.members.map((member) => (
+              {userTeamDetails.members.map((member: any) => (
                 <View key={member.userId} style={styles.memberItem}>
                   <View style={styles.memberInfo}>
                     <Text style={styles.memberName}>
-                      {member.user.username}
+                      {member.user?.username || member.username}
                     </Text>
                     <Text style={styles.memberRole}>{member.role}</Text>
                   </View>
-                  {member.userId === userTeamDetails.ownerId && (
-                    <Ionicons
-                      name="star"
-                      size={16}
-                      color={theme.colors.accent}
-                    />
-                  )}
+                  <View style={styles.memberActions}>
+                    {member.userId === userTeamDetails.ownerId && (
+                      <Ionicons
+                        name="star"
+                        size={16}
+                        color={theme.colors.accent}
+                        style={styles.ownerIcon}
+                      />
+                    )}
+                    {isOwner && member.userId !== userTeamDetails.ownerId && (
+                      <TouchableOpacity
+                        style={styles.removeMemberButton}
+                        onPress={() => handleRemoveMember(member)}
+                      >
+                        <Ionicons
+                          name="person-remove"
+                          size={16}
+                          color={theme.colors.error}
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>
@@ -1020,6 +1052,49 @@ export const TeamScreen: React.FC = () => {
           </Text>
         </View>
       )}
+
+      {/* Confirmation Dialogs */}
+      <ConfirmationDialog
+        visible={showLeaveDialog}
+        title="Leave Team"
+        message={`Are you sure you want to leave "${userTeamDetails?.name}"?`}
+        confirmText="Leave"
+        cancelText="Cancel"
+        confirmVariant="outline"
+        icon="exit-outline"
+        onConfirm={confirmLeaveTeam}
+        onCancel={() => setShowLeaveDialog(false)}
+      />
+
+      <ConfirmationDialog
+        visible={showDeleteDialog}
+        title="Delete Team"
+        message={`Are you sure you want to delete "${teamToDelete?.name}"? This action cannot be undone and will remove all team members.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        confirmVariant="outline"
+        icon="trash-outline"
+        onConfirm={confirmDeleteTeam}
+        onCancel={() => {
+          setShowDeleteDialog(false);
+          setTeamToDelete(null);
+        }}
+      />
+
+      <ConfirmationDialog
+        visible={showRemoveMemberDialog}
+        title="Remove Member"
+        message={`Are you sure you want to remove ${memberToRemove?.user?.username || memberToRemove?.username} from the team?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmVariant="outline"
+        icon="person-remove-outline"
+        onConfirm={confirmRemoveMember}
+        onCancel={() => {
+          setShowRemoveMemberDialog(false);
+          setMemberToRemove(null);
+        }}
+      />
     </ScrollView>
   );
 };
@@ -1358,5 +1433,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600",
     marginTop: 4,
+  },
+  memberActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  ownerIcon: {
+    marginRight: 4,
+  },
+  removeMemberButton: {
+    padding: 4,
+    borderRadius: 4,
+    backgroundColor: theme.colors.surface,
   },
 });

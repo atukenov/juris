@@ -72,6 +72,8 @@ router.post('/:id/join', teamsController.joinTeam);
 // Leave team
 router.post('/:id/leave', teamsController.leaveTeam);
 
+router.delete('/:id/members/:userId', teamsController.removeMember);
+
 // Get available team colors
 router.get('/colors/available', teamsController.getAvailableColors);
 
