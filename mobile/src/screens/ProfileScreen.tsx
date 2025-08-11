@@ -5,12 +5,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from "../components/Button";
 import { ApiTestComponent } from "../components/ApiTestComponent";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
+import { AchievementsScreen } from "./AchievementsScreen";
 import { useAuthStore } from "../store/authStore";
 import { useGamificationStore } from "../store/gamificationStore";
 import { theme } from "../theme/theme";
@@ -32,6 +34,7 @@ interface UserStats {
 export const ProfileScreen = () => {
   const { user, updateProfile, logout, isLoading, error } = useAuthStore();
   const { userStats, userLevel, fetchUserStats, fetchUserLevel, isLoadingStats } = useGamificationStore();
+  const [activeTab, setActiveTab] = useState<'profile' | 'achievements'>('profile');
   const [formData, setFormData] = useState<FormData>({
     username: user?.username || "",
     email: user?.email || "",
@@ -87,8 +90,42 @@ export const ProfileScreen = () => {
   const displayName = getProfileDisplayName(user);
   const formattedStats = formatStats(userStats);
 
+  const renderTabButton = (tab: 'profile' | 'achievements', label: string, icon: string) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+      onPress={() => setActiveTab(tab)}
+    >
+      <Ionicons 
+        name={icon as any} 
+        size={20} 
+        color={activeTab === tab ? theme.colors.white : theme.colors.text} 
+      />
+      <Text style={[styles.tabButtonText, activeTab === tab && styles.activeTabButtonText]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  if (activeTab === 'achievements') {
+    return (
+      <View style={styles.container}>
+        <View style={styles.tabContainer}>
+          {renderTabButton('profile', 'Profile', 'person')}
+          {renderTabButton('achievements', 'Achievements', 'trophy')}
+        </View>
+        <AchievementsScreen />
+      </View>
+    );
+  }
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        {renderTabButton('profile', 'Profile', 'person')}
+        {renderTabButton('achievements', 'Achievements', 'trophy')}
+      </View>
+
+      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content}>
       {/* API Test Component */}
       <ApiTestComponent />
       
@@ -250,7 +287,8 @@ export const ProfileScreen = () => {
         onConfirm={handleLogout}
         onCancel={() => setShowLogoutDialog(false)}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -258,6 +296,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    marginHorizontal: theme.spacing.xs,
+    backgroundColor: theme.colors.background,
+  },
+  activeTabButton: {
+    backgroundColor: theme.colors.primary,
+  },
+  tabButtonText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  activeTabButtonText: {
+    color: theme.colors.white,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   content: {
     flexGrow: 1,
