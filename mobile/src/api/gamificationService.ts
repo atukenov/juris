@@ -1,6 +1,6 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = "http://192.168.100.46:3000";
 
 export interface UserLevel {
   currentLevel: number;
@@ -26,7 +26,7 @@ export interface Challenge {
   id: number;
   name: string;
   description: string;
-  challengeType: 'daily' | 'weekly';
+  challengeType: "daily" | "weekly";
   category: string;
   pointsReward: number;
   startDate: string;
@@ -61,10 +61,10 @@ export interface RankingEntry {
 }
 
 const getAuthHeaders = async () => {
-  const token = await AsyncStorage.getItem('token');
+  const token = await AsyncStorage.getItem("auth_token");
   return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
   };
 };
 
@@ -73,15 +73,16 @@ export const gamificationService = {
     const response = await fetch(`${API_URL}/api/gamification/level`, {
       headers: await getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch user level');
+    if (!response.ok) throw new Error("Failed to fetch user level");
     return response.json();
   },
 
   async getUserAchievements(): Promise<Achievement[]> {
+    console.log("here", API_URL);
     const response = await fetch(`${API_URL}/api/gamification/achievements`, {
       headers: await getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch achievements');
+    if (!response.ok) throw new Error("Failed to fetch achievements");
     return response.json();
   },
 
@@ -89,7 +90,7 @@ export const gamificationService = {
     const response = await fetch(`${API_URL}/api/gamification/challenges`, {
       headers: await getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch challenges');
+    if (!response.ok) throw new Error("Failed to fetch challenges");
     return response.json();
   },
 
@@ -97,15 +98,22 @@ export const gamificationService = {
     const response = await fetch(`${API_URL}/api/gamification/stats`, {
       headers: await getAuthHeaders(),
     });
-    if (!response.ok) throw new Error('Failed to fetch user stats');
+    if (!response.ok) throw new Error("Failed to fetch user stats");
     return response.json();
   },
 
-  async getRankings(type: 'global' | 'weekly' | 'monthly' = 'global', category: 'user' | 'team' = 'user', limit: number = 50): Promise<RankingEntry[]> {
-    const response = await fetch(`${API_URL}/api/gamification/rankings?type=${type}&category=${category}&limit=${limit}`, {
-      headers: await getAuthHeaders(),
-    });
-    if (!response.ok) throw new Error('Failed to fetch rankings');
+  async getRankings(
+    type: "global" | "weekly" | "monthly" = "global",
+    category: "user" | "team" = "user",
+    limit: number = 50
+  ): Promise<RankingEntry[]> {
+    const response = await fetch(
+      `${API_URL}/api/gamification/rankings?type=${type}&category=${category}&limit=${limit}`,
+      {
+        headers: await getAuthHeaders(),
+      }
+    );
+    if (!response.ok) throw new Error("Failed to fetch rankings");
     return response.json();
   },
 };
