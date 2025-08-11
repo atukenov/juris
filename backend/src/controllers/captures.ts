@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { pool } from '../lib/database';
 import * as validator from 'express-validator';
 import { notificationService } from '../services/notificationService';
+import { GamificationService } from '../services/GamificationService';
+import { ChallengeService } from '../services/ChallengeService';
 
 // Захват территории командой
 export const captureTerritory = async (req: Request, res: Response) => {
@@ -164,6 +166,11 @@ export const captureTerritory = async (req: Request, res: Response) => {
           capturedBy: captureInfo.captured_by_username
         }
       });
+
+      await GamificationService.awardExperience(userId, capture.points_earned);
+      await GamificationService.updateAchievementProgress(userId, 'territory', 'count', 1);
+      await GamificationService.updateDailyActivity(userId, 1, 0, capture.points_earned);
+      await ChallengeService.updateChallengeProgress(userId, 'territory', 'capture_territories', 1);
 
       res.status(201).json({
         id: capture.id,

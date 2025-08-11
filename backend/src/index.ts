@@ -5,11 +5,13 @@ import * as path from 'path';
 import { createServer } from 'http';
 import { testDatabaseConnection } from './lib/database';
 import { RealTimeService } from './services/RealTimeService';
+import { GamificationJobs } from './jobs/gamificationJobs';
 import authRoutes from './routes/auth';
 import captureRoutes from './routes/captures';
 import teamRoutes from './routes/teams';
 import territoryRoutes from './routes/territories';
 import chatRoutes from './routes/chat';
+import gamificationRoutes from './routes/gamification';
 
 // Load environment variables
 const envPath = path.join(__dirname, '..', '.env');
@@ -39,6 +41,7 @@ app.use('/api/teams', teamRoutes);
 app.use('/api/territories', territoryRoutes);
 app.use('/api/captures', captureRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/gamification', gamificationRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -75,6 +78,8 @@ app.get('/db-test', async (req, res) => {
 });
 
 const realTimeService = new RealTimeService(httpServer);
+
+GamificationJobs.startScheduler();
 
 httpServer.listen(3000, '0.0.0.0', async () => {
   console.log(`🚀 Server is running on port ${PORT}`);

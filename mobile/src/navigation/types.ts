@@ -8,5 +8,7 @@ export type RootStackParamList = {
   Run: undefined;
   Team: undefined;
   Chat: undefined;
+  Achievements: undefined;
+  Leaderboard: undefined;
   Profile: undefined;
 };
