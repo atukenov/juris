@@ -7,13 +7,14 @@ export class WeeklyStreakService {
       const query = `
         WITH weekly_runs AS (
           SELECT 
-            DATE_TRUNC('week', created_at) as week_start,
-            COUNT(*) as runs_count
-          FROM runs 
+            DATE_TRUNC('week', activity_date) as week_start,
+            COUNT(DISTINCT activity_date) as runs_count
+          FROM user_daily_activity 
           WHERE user_id = $1 
-            AND created_at >= NOW() - INTERVAL '1 year'
-          GROUP BY DATE_TRUNC('week', created_at)
-          HAVING COUNT(*) >= 3
+            AND activity_date >= CURRENT_DATE - INTERVAL '1 year'
+            AND (territories_captured > 0 OR distance_run > 0)
+          GROUP BY DATE_TRUNC('week', activity_date)
+          HAVING COUNT(DISTINCT activity_date) >= 3
           ORDER BY week_start DESC
         ),
         consecutive_weeks AS (
@@ -46,14 +47,15 @@ export class WeeklyStreakService {
       const query = `
         WITH monthly_weeks AS (
           SELECT 
-            DATE_TRUNC('month', DATE_TRUNC('week', created_at)) as month_start,
-            DATE_TRUNC('week', created_at) as week_start,
-            COUNT(*) as runs_count
-          FROM runs 
+            DATE_TRUNC('month', DATE_TRUNC('week', activity_date)) as month_start,
+            DATE_TRUNC('week', activity_date) as week_start,
+            COUNT(DISTINCT activity_date) as runs_count
+          FROM user_daily_activity 
           WHERE user_id = $1 
-            AND created_at >= NOW() - INTERVAL '2 years'
-          GROUP BY DATE_TRUNC('month', DATE_TRUNC('week', created_at)), DATE_TRUNC('week', created_at)
-          HAVING COUNT(*) >= 3
+            AND activity_date >= CURRENT_DATE - INTERVAL '2 years'
+            AND (territories_captured > 0 OR distance_run > 0)
+          GROUP BY DATE_TRUNC('month', DATE_TRUNC('week', activity_date)), DATE_TRUNC('week', activity_date)
+          HAVING COUNT(DISTINCT activity_date) >= 3
         ),
         monthly_qualifying AS (
           SELECT 
