@@ -11,8 +11,8 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from "../components/Button";
 import { ApiTestComponent } from "../components/ApiTestComponent";
-import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { AchievementsScreen } from "./AchievementsScreen";
+import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { useAuthStore } from "../store/authStore";
 import { useGamificationStore } from "../store/gamificationStore";
 import { theme } from "../theme/theme";
@@ -105,6 +105,7 @@ export const ProfileScreen = () => {
       </Text>
     </TouchableOpacity>
   );
+
 
   if (activeTab === 'achievements') {
     return (

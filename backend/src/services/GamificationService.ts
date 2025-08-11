@@ -1,4 +1,5 @@
 import { pool } from '../lib/database';
+import { WeeklyStreakService } from './WeeklyStreakService';
 import { notificationService } from './notificationService';
 
 export class GamificationService {
@@ -136,6 +137,88 @@ export class GamificationService {
       const streakDays = parseInt(streakResult.rows[0].streak_days);
 
       await this.updateAchievementProgress(userId, 'streak', 'consecutive_days', streakDays);
+      
+      await this.updateWeeklyStreak(userId);
+      await WeeklyStreakService.updateUserStreaks(userId);
+    } finally {
+      client.release();
+    }
+  }
+
+  static async updateWeeklyStreak(userId: string): Promise<void> {
+    const client = await pool.connect();
+    try {
+      const weeklyStreakQuery = `
+        WITH weekly_runs AS (
+          SELECT 
+            DATE_TRUNC('week', activity_date) as week_start,
+            COUNT(DISTINCT activity_date) as runs_per_week
+          FROM user_daily_activity
+          WHERE user_id = $1 
+          AND activity_date >= CURRENT_DATE - INTERVAL '12 weeks'
+          AND (territories_captured > 0 OR distance_run > 0)
+          GROUP BY DATE_TRUNC('week', activity_date)
+          HAVING COUNT(DISTINCT activity_date) >= 3
+          ORDER BY week_start DESC
+        ),
+        consecutive_weeks AS (
+          SELECT 
+            week_start,
+            runs_per_week,
+            ROW_NUMBER() OVER (ORDER BY week_start DESC) as week_rank
+          FROM weekly_runs
+        ),
+        streak_calculation AS (
+          SELECT 
+            COUNT(*) as weekly_streak
+          FROM consecutive_weeks cw1
+          WHERE NOT EXISTS (
+            SELECT 1 FROM consecutive_weeks cw2 
+            WHERE cw2.week_rank = cw1.week_rank - 1 
+            AND cw2.week_start != cw1.week_start - INTERVAL '1 week'
+          )
+          AND cw1.week_rank <= (
+            SELECT MIN(week_rank) FROM consecutive_weeks cw3
+            WHERE EXISTS (
+              SELECT 1 FROM consecutive_weeks cw4 
+              WHERE cw4.week_rank = cw3.week_rank - 1 
+              AND cw4.week_start != cw3.week_start - INTERVAL '1 week'
+            )
+            UNION ALL SELECT 999
+            LIMIT 1
+          )
+        )
+        SELECT COALESCE(weekly_streak, 0) as weekly_streak FROM streak_calculation
+      `;
+      
+      const weeklyResult = await client.query(weeklyStreakQuery, [userId]);
+      const weeklyStreak = parseInt(weeklyResult.rows[0]?.weekly_streak || 0);
+
+      if (weeklyStreak >= 4) {
+        await this.updateAchievementProgress(userId, 'streak', 'weekly_streak', weeklyStreak);
+      }
+
+      const monthlyStreakQuery = `
+        SELECT COUNT(*) as monthly_streak
+        FROM (
+          SELECT DATE_TRUNC('month', activity_date) as month_start
+          FROM user_daily_activity
+          WHERE user_id = $1 
+          AND activity_date >= CURRENT_DATE - INTERVAL '12 months'
+          AND (territories_captured > 0 OR distance_run > 0)
+          GROUP BY DATE_TRUNC('month', activity_date)
+          HAVING COUNT(DISTINCT DATE_TRUNC('week', activity_date)) >= 4
+          AND COUNT(DISTINCT activity_date) >= 12
+          ORDER BY month_start DESC
+        ) monthly_runs
+      `;
+      
+      const monthlyResult = await client.query(monthlyStreakQuery, [userId]);
+      const monthlyStreak = parseInt(monthlyResult.rows[0]?.monthly_streak || 0);
+
+      if (monthlyStreak >= 3) {
+        await this.updateAchievementProgress(userId, 'streak', 'monthly_streak', monthlyStreak);
+      }
     } finally {
       client.release();
     }

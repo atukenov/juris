@@ -19,6 +19,7 @@ export const MainNavigator = () => {
   return (
     <Tab.Navigator
       screenOptions={{
+        headerShown: false,
         tabBarStyle: {
           backgroundColor: theme.colors.background,
           borderTopWidth: 1,
@@ -28,12 +29,6 @@ export const MainNavigator = () => {
         },
         tabBarActiveTintColor: theme.colors.primary,
         tabBarInactiveTintColor: theme.colors.textLight,
-        headerStyle: {
-          backgroundColor: theme.colors.background,
-        },
-        headerTitleStyle: {
-          color: theme.colors.text,
-        },
       }}
     >
       <Tab.Screen
