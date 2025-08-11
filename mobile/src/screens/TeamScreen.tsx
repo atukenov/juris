@@ -502,10 +502,6 @@ export const TeamScreen: React.FC = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  if (loading) {
-    return <LoadingOverlay visible={true} />;
-  }
-
   const renderTabButton = (tab: 'team' | 'chat', label: string, icon: string) => (
     <TouchableOpacity
       style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
@@ -521,6 +517,10 @@ export const TeamScreen: React.FC = () => {
       </Text>
     </TouchableOpacity>
   );
+
+  if (loading) {
+    return <LoadingOverlay visible={true} />;
+  }
 
   if (activeTab === 'chat') {
     return <ChatScreen />;
