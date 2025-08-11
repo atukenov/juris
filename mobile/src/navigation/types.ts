@@ -7,8 +7,5 @@ export type RootStackParamList = {
   Map: undefined;
   Run: undefined;
   Team: undefined;
-  Chat: undefined;
-  Achievements: undefined;
-  Leaderboard: undefined;
   Profile: undefined;
 };

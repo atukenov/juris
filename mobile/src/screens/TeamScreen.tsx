@@ -22,6 +22,7 @@ import {
 import { Button } from "../components/Button";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { LoadingOverlay } from "../components/LoadingOverlay";
+import { ChatScreen } from "./ChatScreen";
 import { useFeedback } from "../contexts/FeedbackContext";
 import { useAuthStore } from "../store/authStore";
 import { theme } from "../theme/theme";
@@ -151,6 +152,7 @@ export const TeamScreen: React.FC = () => {
   const { user } = useAuthStore();
   const { showFeedback } = useFeedback();
 
+  const [activeTab, setActiveTab] = useState<'team' | 'chat'>('team');
   const [teams, setTeams] = useState<Team[]>([]);
   const [userTeamDetails, setUserTeamDetails] = useState<TeamDetails | null>(
     null
@@ -504,13 +506,39 @@ export const TeamScreen: React.FC = () => {
     return <LoadingOverlay visible={true} />;
   }
 
-  return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
+  const renderTabButton = (tab: 'team' | 'chat', label: string, icon: string) => (
+    <TouchableOpacity
+      style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
+      onPress={() => setActiveTab(tab)}
     >
+      <Ionicons 
+        name={icon as any} 
+        size={20} 
+        color={activeTab === tab ? theme.colors.white : theme.colors.text} 
+      />
+      <Text style={[styles.tabButtonText, activeTab === tab && styles.activeTabButtonText]}>
+        {label}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  if (activeTab === 'chat') {
+    return <ChatScreen />;
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.tabContainer}>
+        {renderTabButton('team', 'Team', 'people')}
+        {renderTabButton('chat', 'Chat', 'chatbubbles')}
+      </View>
+
+      <ScrollView
+        style={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       {/* User's Current Team */}
       {userTeamDetails ? (
         <View style={styles.section}>
@@ -1095,7 +1123,8 @@ export const TeamScreen: React.FC = () => {
           setMemberToRemove(null);
         }}
       />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -1103,6 +1132,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: theme.colors.background,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+  },
+  tabButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+    borderRadius: theme.borderRadius.md,
+    marginHorizontal: theme.spacing.xs,
+    backgroundColor: theme.colors.background,
+  },
+  activeTabButton: {
+    backgroundColor: theme.colors.primary,
+  },
+  tabButtonText: {
+    marginLeft: theme.spacing.sm,
+    fontSize: theme.typography.body.fontSize,
+    fontWeight: '600',
+    color: theme.colors.text,
+  },
+  activeTabButtonText: {
+    color: theme.colors.white,
+  },
+  scrollContainer: {
+    flex: 1,
   },
   section: {
     padding: 16,
