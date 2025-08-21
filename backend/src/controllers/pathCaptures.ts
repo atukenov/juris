@@ -1,11 +1,22 @@
 import { Request, Response } from 'express';
-import { prisma } from '../lib/prisma';
+import { pool } from '../lib/database';
 import {
   GameMechanicsService,
   PathPoint,
 } from '../services/GameMechanicsService';
 
-// Start recording a capture path
+interface TeamMember {
+  id: number;
+  user_id: string;  // Changed to string to match database type
+  team_id: string;  // Changed to string to match database type
+  team: {
+    id: string;     // Changed to string to match database type
+    name: string;
+    is_active: boolean;
+  };
+}
+
+// Starting a capture path
 export const startCapturePath = async (req: Request, res: Response) => {
   try {
     const { territoryId } = req.params;
@@ -17,15 +28,24 @@ export const startCapturePath = async (req: Request, res: Response) => {
     }
 
     // Check if user has an active team
-    const userTeam = await prisma.teamMember.findFirst({
-      where: {
-        userId,
-        team: { isActive: true },
-      },
-      include: {
-        team: true,
-      },
-    });
+    const {
+      rows: [userTeam],
+    } = await pool.query<TeamMember>(
+      `
+      SELECT 
+        tm.id, tm.user_id, tm.team_id,
+        json_build_object(
+          'id', t.id,
+          'name', t.name,
+          'is_active', t.is_active
+        ) as team
+      FROM team_members tm
+      JOIN teams t ON tm.team_id = t.id
+      WHERE tm.user_id = $1 AND t.is_active = true
+      LIMIT 1
+    `,
+      [userId]
+    );
 
     if (!userTeam) {
       return res
@@ -34,12 +54,15 @@ export const startCapturePath = async (req: Request, res: Response) => {
     }
 
     // Check if user already has an active path for this territory
-    const activePath = await prisma.$queryRaw<{ id: number }[]>`
+    const { rows: activePath } = await pool.query<{ id: number }>(
+      `
       SELECT id FROM capture_paths
-      WHERE user_id = ${String(userId)}
-        AND territory_id = ${parseInt(territoryId)}
+      WHERE user_id = $1
+        AND territory_id = $2
         AND is_completed = false
-    `;
+    `,
+      [userId, parseInt(territoryId)]
+    );
 
     if (activePath.length > 0) {
       return res.status(400).json({
@@ -48,7 +71,10 @@ export const startCapturePath = async (req: Request, res: Response) => {
     }
 
     // Create new capture path with initial point
-    const newPath = await prisma.$queryRaw`
+    const {
+      rows: [newPath],
+    } = await pool.query<{ id: number; start_time: Date }>(
+      `
       INSERT INTO capture_paths (
         user_id,
         territory_id,
@@ -56,18 +82,20 @@ export const startCapturePath = async (req: Request, res: Response) => {
         path_points_count
       )
       VALUES (
-        ${String(userId)},
-        ${parseInt(territoryId)},
-        ST_MakeLine(ARRAY[ST_SetSRID(ST_MakePoint(${Number(lng)}, ${Number(lat)}), 4326)]),
+        $1,
+        $2,
+        ST_MakeLine(ARRAY[ST_SetSRID(ST_MakePoint($3, $4), 4326)]),
         1
       )
       RETURNING id, start_time
-    `;
+    `,
+      [userId, parseInt(territoryId), lng, lat]
+    );
 
     res.status(201).json({
       message: 'Capture path started',
-      pathId: newPath[0].id,
-      startTime: newPath[0].start_time,
+      pathId: newPath.id,
+      startTime: newPath.start_time,
     });
   } catch (error) {
     console.error('Start capture path error:', error);
@@ -93,19 +121,20 @@ export const addPathPoint = async (req: Request, res: Response) => {
     };
 
     // Validate point
-    const lastPoints = await prisma.$queryRaw<
-      Array<{ lat: number; lng: number }>
-    >`
+    const { rows: lastPoints } = await pool.query<{ lat: number; lng: number }>(
+      `
       SELECT 
         ST_Y(unnest(ST_Points(path_line))) as lat,
         ST_X(unnest(ST_Points(path_line))) as lng
       FROM capture_paths
-      WHERE id = ${parseInt(pathId)}
-        AND user_id = ${String(userId)}
+      WHERE id = $1
+        AND user_id = $2
         AND is_completed = false
       ORDER BY created_at DESC
       LIMIT 5
-    `;
+    `,
+      [parseInt(pathId), userId]
+    );
 
     interface LastPointData {
       lat: number;
@@ -127,19 +156,24 @@ export const addPathPoint = async (req: Request, res: Response) => {
     }
 
     // Update path line by adding new point
-    const updatedPath = await prisma.$queryRaw<any[]>`
+    const { rows: updatedPath } = await pool.query<{
+      path_points_count: number;
+    }>(
+      `
       UPDATE capture_paths
       SET 
         path_line = ST_AddPoint(
           path_line,
-          ST_SetSRID(ST_MakePoint(${Number(lng)}, ${Number(lat)}), 4326)
+          ST_SetSRID(ST_MakePoint($1, $2), 4326)
         ),
         path_points_count = path_points_count + 1
-      WHERE id = ${parseInt(pathId)}
-        AND user_id = ${userId}
+      WHERE id = $3
+        AND user_id = $4
         AND is_completed = false
       RETURNING path_points_count
-    `;
+    `,
+      [lng, lat, parseInt(pathId), userId]
+    );
 
     if (updatedPath.length === 0) {
       return res.status(404).json({ error: 'Active capture path not found' });
@@ -180,7 +214,8 @@ export const completeCapturePath = async (req: Request, res: Response) => {
       territory_name: string;
     }
 
-    const pathInfo = await prisma.$queryRaw<PathInfo[]>`
+    const { rows: pathInfo } = await pool.query<PathInfo>(
+      `
       SELECT 
         cp.id,
         cp.territory_id,
@@ -190,10 +225,12 @@ export const completeCapturePath = async (req: Request, res: Response) => {
         t.name as territory_name
       FROM capture_paths cp
       JOIN territories t ON cp.territory_id = t.id
-      WHERE cp.id = ${parseInt(pathId)}
-        AND cp.user_id = ${String(userId)}
+      WHERE cp.id = $1
+        AND cp.user_id = $2
         AND cp.is_completed = false
-    `;
+    `,
+      [parseInt(pathId), userId]
+    );
 
     if (pathInfo.length === 0) {
       return res.status(404).json({ error: 'Active capture path not found' });
@@ -202,20 +239,28 @@ export const completeCapturePath = async (req: Request, res: Response) => {
     const path = pathInfo[0];
 
     // Check if path forms a cycle (start point = end point)
-    const isValidCycle = await prisma.$queryRaw`
+    const {
+      rows: [validation],
+    } = await pool.query<{
+      is_cycle: boolean;
+      path_length: number;
+      territory_area: number;
+      overlap_area: number;
+    }>(
+      `
       SELECT ST_Equals(
-        ST_StartPoint(${path.path_line}),
-        ST_EndPoint(${path.path_line})
+        ST_StartPoint($1),
+        ST_EndPoint($1)
       ) as is_cycle,
-      ST_Length(${path.path_line}::geography) as path_length,
-      ST_Area(${path.boundary}::geography) as territory_area,
+      ST_Length($1::geography) as path_length,
+      ST_Area($2::geography) as territory_area,
       ST_Area(ST_Intersection(
-        ST_MakePolygon(${path.path_line}),
-        ${path.boundary}
+        ST_MakePolygon($1),
+        $2
       )::geography) as overlap_area
-    `;
-
-    const validation = isValidCycle[0];
+    `,
+      [path.path_line, path.boundary]
+    );
 
     if (!validation.is_cycle) {
       return res.status(400).json({
@@ -238,14 +283,24 @@ export const completeCapturePath = async (req: Request, res: Response) => {
     }
 
     // Get user's team
-    const userTeam = await prisma.teamMember.findFirst({
-      where: {
-        userId: String(userId),
-      },
-      include: {
-        team: true,
-      },
-    });
+    const {
+      rows: [userTeam],
+    } = await pool.query<TeamMember>(
+      `
+      SELECT 
+        tm.id, tm.user_id, tm.team_id,
+        json_build_object(
+          'id', t.id,
+          'name', t.name,
+          'is_active', t.is_active
+        ) as team
+      FROM team_members tm
+      JOIN teams t ON tm.team_id = t.id
+      WHERE tm.user_id = $1
+      LIMIT 1
+    `,
+      [userId]
+    );
 
     if (!userTeam?.team) {
       return res.status(400).json({
@@ -254,16 +309,14 @@ export const completeCapturePath = async (req: Request, res: Response) => {
     }
 
     // Mark current captures as inactive
-    await prisma.territoryCapture.updateMany({
-      where: {
-        territoryId: path.territory_id,
-        isActive: true,
-      },
-      data: {
-        isActive: false,
-        lostAt: new Date(),
-      },
-    });
+    await pool.query(
+      `
+      UPDATE territory_captures
+      SET is_active = false, lost_at = CURRENT_TIMESTAMP
+      WHERE territory_id = $1 AND is_active = true
+    `,
+      [path.territory_id]
+    );
 
     // Calculate bonuses
     const teamBonus = await GameMechanicsService.calculateTeamBonus(
@@ -277,36 +330,63 @@ export const completeCapturePath = async (req: Request, res: Response) => {
     const points = Math.round(coveragePercent * totalBonus);
 
     // Create new capture
-    const capture = await prisma.territoryCapture.create({
-      data: {
-        territoryId: path.territory_id,
-        teamId: userTeam.team.id,
-        capturedByUserId: String(userId),
-        captureMethod: 'path_trace',
-        pointsEarned: points,
-        fortificationLevel: 1,
-        isActive: true,
-      },
-    });
+    const {
+      rows: [capture],
+    } = await pool.query<{
+      id: number;
+      points_earned: number;
+    }>(
+      `
+      INSERT INTO territory_captures (
+        territory_id,
+        team_id,
+        captured_by_user_id,
+        capture_method,
+        points_earned,
+        fortification_level,
+        is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, points_earned
+    `,
+      [
+        path.territory_id,
+        userTeam.team.id,
+        userId,
+        'path_trace',
+        points,
+        1,
+        true,
+      ]
+    );
 
     // Mark path as completed
-    await prisma.$queryRaw`
+    await pool.query(
+      `
       UPDATE capture_paths
       SET 
         is_completed = true,
         end_time = CURRENT_TIMESTAMP
-      WHERE id = ${path.id}
-    `;
+      WHERE id = $1
+    `,
+      [path.id]
+    );
 
-    const team = await prisma.team.findUnique({
-      where: { id: userTeam.teamId },
-    });
+    const {
+      rows: [team],
+    } = await pool.query<{ name: string }>(
+      `
+      SELECT name 
+      FROM teams 
+      WHERE id = $1
+    `,
+      [userTeam.team_id]
+    );
 
     res.json({
       message: `Territory "${path.territory_name}" captured successfully by team "${team?.name}"!`,
       coverage: Math.round(coveragePercent),
       pathLength: Math.round(validation.path_length),
-      pointsEarned: capture.pointsEarned,
+      pointsEarned: capture.points_earned,
     });
   } catch (error) {
     console.error('Complete capture path error:', error);

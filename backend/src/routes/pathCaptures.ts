@@ -1,8 +1,8 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import * as pathCapturesController from '../controllers/pathCaptures';
+import { pool } from '../lib/database';
 import { auth } from '../middleware/auth';
-import { prisma } from '../lib/prisma';
 
 const router = Router();
 
@@ -44,7 +44,8 @@ router.get('/team/:teamId', async (req, res) => {
   try {
     const { teamId } = req.params;
 
-    const territories = await prisma.$queryRaw`
+    const { rows: territories } = await pool.query(
+      `
         SELECT 
           t.id,
           t.name,
@@ -59,21 +60,29 @@ router.get('/team/:teamId', async (req, res) => {
         FROM territories t
         JOIN territory_captures tc ON t.id = tc.territory_id
         LEFT JOIN capture_paths cp ON t.id = cp.territory_id AND cp.is_completed = true
-        WHERE tc.team_id = ${parseInt(teamId)}
+        WHERE tc.team_id = $1
           AND tc.is_active = true
         ORDER BY tc.captured_at DESC
-      `;
+      `,
+      [teamId]
+    );
 
-    const team = await prisma.team.findUnique({
-      where: { id: String(teamId) },
-      include: {
-        _count: {
-          select: {
-            captures: true,
-          },
-        },
-      },
-    });
+    // Get team info and count of captures
+    const {
+      rows: [team],
+    } = await pool.query(
+      `
+      SELECT 
+        t.id,
+        t.name,
+        COUNT(tc.id) as total_captures
+      FROM teams t
+      LEFT JOIN territory_captures tc ON t.id = tc.team_id
+      WHERE t.id = $1
+      GROUP BY t.id
+    `,
+      [teamId]
+    );
 
     if (!team) {
       return res.status(404).json({ error: 'Team not found' });
@@ -83,7 +92,7 @@ router.get('/team/:teamId', async (req, res) => {
       team: {
         id: team.id,
         name: team.name,
-        totalTerritories: team._count.captures,
+        totalTerritories: parseInt(team.total_captures),
       },
       territories,
     });
