@@ -12,8 +12,6 @@ import {
 import { ApiTestComponent } from "../components/ApiTestComponent";
 import { Button } from "../components/Button";
 import { ConfirmationDialog } from "../components/ConfirmationDialog";
-import { AchievementsScreen } from "./AchievementsScreen";
-import { ConfirmationDialog } from "../components/ConfirmationDialog";
 import { useAuthStore } from "../store/authStore";
 import { useGamificationStore } from "../store/gamificationStore";
 import { theme } from "../theme/theme";
@@ -22,6 +20,7 @@ import {
   getProfileDisplayName,
   validateProfileForm,
 } from "../utils/profileUtils";
+import { AchievementsScreen } from "./AchievementsScreen";
 
 type FormData = {
   username: string;
@@ -38,8 +37,16 @@ interface UserStats {
 
 export const ProfileScreen = () => {
   const { user, updateProfile, logout, isLoading, error } = useAuthStore();
-  const { userStats, userLevel, fetchUserStats, fetchUserLevel, isLoadingStats } = useGamificationStore();
-  const [activeTab, setActiveTab] = useState<'profile' | 'achievements'>('profile');
+  const {
+    userStats,
+    userLevel,
+    fetchUserStats,
+    fetchUserLevel,
+    isLoadingStats,
+  } = useGamificationStore();
+  const [activeTab, setActiveTab] = useState<"profile" | "achievements">(
+    "profile"
+  );
   const [formData, setFormData] = useState<FormData>({
     username: user?.username || "",
     email: user?.email || "",
@@ -57,7 +64,7 @@ export const ProfileScreen = () => {
         firstName: user.firstName || "",
         lastName: user.lastName || "",
       });
-      
+
       fetchUserStats();
       fetchUserLevel();
     }
@@ -97,29 +104,37 @@ export const ProfileScreen = () => {
   const displayName = getProfileDisplayName(user);
   const formattedStats = formatStats(userStats);
 
-  const renderTabButton = (tab: 'profile' | 'achievements', label: string, icon: string) => (
+  const renderTabButton = (
+    tab: "profile" | "achievements",
+    label: string,
+    icon: string
+  ) => (
     <TouchableOpacity
       style={[styles.tabButton, activeTab === tab && styles.activeTabButton]}
       onPress={() => setActiveTab(tab)}
     >
-      <Ionicons 
-        name={icon as any} 
-        size={20} 
-        color={activeTab === tab ? theme.colors.white : theme.colors.text} 
+      <Ionicons
+        name={icon as any}
+        size={20}
+        color={activeTab === tab ? theme.colors.white : theme.colors.text}
       />
-      <Text style={[styles.tabButtonText, activeTab === tab && styles.activeTabButtonText]}>
+      <Text
+        style={[
+          styles.tabButtonText,
+          activeTab === tab && styles.activeTabButtonText,
+        ]}
+      >
         {label}
       </Text>
     </TouchableOpacity>
   );
 
-
-  if (activeTab === 'achievements') {
+  if (activeTab === "achievements") {
     return (
       <View style={styles.container}>
         <View style={styles.tabContainer}>
-          {renderTabButton('profile', 'Profile', 'person')}
-          {renderTabButton('achievements', 'Achievements', 'trophy')}
+          {renderTabButton("profile", "Profile", "person")}
+          {renderTabButton("achievements", "Achievements", "trophy")}
         </View>
         <AchievementsScreen />
       </View>
@@ -129,182 +144,193 @@ export const ProfileScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.tabContainer}>
-        {renderTabButton('profile', 'Profile', 'person')}
-        {renderTabButton('achievements', 'Achievements', 'trophy')}
+        {renderTabButton("profile", "Profile", "person")}
+        {renderTabButton("achievements", "Achievements", "trophy")}
       </View>
 
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.content}>
-      {/* API Test Component */}
-      <ApiTestComponent />
+      <ScrollView
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.content}
+      >
+        {/* API Test Component */}
+        <ApiTestComponent />
 
-      {/* Profile Header */}
-      <View style={styles.header}>
-        <View style={styles.avatarContainer}>
-          <Ionicons
-            name="person-circle"
-            size={80}
-            color={theme.colors.primary}
-          />
-        </View>
-        <Text style={styles.displayName}>{displayName}</Text>
-        <Text style={styles.username}>@{user?.username}</Text>
-      </View>
-
-      {/* Team Information */}
-      {user?.currentTeam && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Team Information</Text>
-          <View style={styles.infoRow}>
-            <Ionicons name="people" size={20} color={theme.colors.primary} />
-            <Text style={styles.infoText}>{user.currentTeam.name}</Text>
+        {/* Profile Header */}
+        <View style={styles.header}>
+          <View style={styles.avatarContainer}>
+            <Ionicons
+              name="person-circle"
+              size={80}
+              color={theme.colors.primary}
+            />
           </View>
-          {formattedStats.teamJoinDate && (
+          <Text style={styles.displayName}>{displayName}</Text>
+          <Text style={styles.username}>@{user?.username}</Text>
+        </View>
+
+        {/* Team Information */}
+        {user?.currentTeam && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Team Information</Text>
             <View style={styles.infoRow}>
-              <Ionicons
-                name="calendar"
-                size={20}
-                color={theme.colors.primary}
-              />
-              <Text style={styles.infoText}>
-                Joined {formattedStats.teamJoinDate}
-              </Text>
+              <Ionicons name="people" size={20} color={theme.colors.primary} />
+              <Text style={styles.infoText}>{user.currentTeam.name}</Text>
+            </View>
+            {formattedStats.teamJoinDate && (
+              <View style={styles.infoRow}>
+                <Ionicons
+                  name="calendar"
+                  size={20}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.infoText}>
+                  Joined {formattedStats.teamJoinDate}
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Statistics */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Statistics</Text>
+          {isLoadingStats ? (
+            <Text style={styles.infoText}>Loading statistics...</Text>
+          ) : (
+            <View style={styles.statsContainer}>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {userStats?.territoriesCaptured || 0}
+                </Text>
+                <Text style={styles.statLabel}>Territories</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {userLevel?.currentLevel || 1}
+                </Text>
+                <Text style={styles.statLabel}>Level</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {userStats?.totalPoints || 0}
+                </Text>
+                <Text style={styles.statLabel}>Points</Text>
+              </View>
+              <View style={styles.statItem}>
+                <Text style={styles.statNumber}>
+                  {Math.round(userStats?.totalDistance || 0)}
+                </Text>
+                <Text style={styles.statLabel}>KM Run</Text>
+              </View>
             </View>
           )}
         </View>
-      )}
 
-      {/* Statistics */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Statistics</Text>
-        {isLoadingStats ? (
-          <Text style={styles.infoText}>Loading statistics...</Text>
-        ) : (
-          <View style={styles.statsContainer}>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats?.territoriesCaptured || 0}</Text>
-              <Text style={styles.statLabel}>Territories</Text>
+        {/* Profile Form */}
+        <View style={styles.form}>
+          <Text style={styles.title}>Profile Details</Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="First Name"
+            value={formData.firstName}
+            onChangeText={(text) =>
+              setFormData((prev) => ({ ...prev, firstName: text }))
+            }
+            editable={isEditing}
+            placeholderTextColor={theme.colors.textLight}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Last Name"
+            value={formData.lastName}
+            onChangeText={(text) =>
+              setFormData((prev) => ({ ...prev, lastName: text }))
+            }
+            editable={isEditing}
+            placeholderTextColor={theme.colors.textLight}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Username"
+            value={formData.username}
+            onChangeText={(text) =>
+              setFormData((prev) => ({ ...prev, username: text }))
+            }
+            editable={isEditing}
+            placeholderTextColor={theme.colors.textLight}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={formData.email}
+            onChangeText={(text) =>
+              setFormData((prev) => ({ ...prev, email: text }))
+            }
+            editable={isEditing}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            placeholderTextColor={theme.colors.textLight}
+          />
+
+          {error && <Text style={styles.errorText}>{error}</Text>}
+
+          {isEditing ? (
+            <View style={styles.buttonGroup}>
+              <Button
+                title="Save Changes"
+                onPress={handleUpdate}
+                loading={isLoading}
+                variant="primary"
+                style={styles.button}
+              />
+              <Button
+                title="Cancel"
+                onPress={() => {
+                  setIsEditing(false);
+                  setFormData({
+                    username: user?.username || "",
+                    email: user?.email || "",
+                    firstName: user?.firstName || "",
+                    lastName: user?.lastName || "",
+                  });
+                }}
+                variant="outline"
+                style={styles.button}
+              />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userLevel?.currentLevel || 1}</Text>
-              <Text style={styles.statLabel}>Level</Text>
+          ) : (
+            <View style={styles.buttonGroup}>
+              <Button
+                title="Edit Profile"
+                onPress={() => setIsEditing(true)}
+                variant="primary"
+                style={styles.button}
+              />
+              <Button
+                title="Log Out"
+                onPress={() => setShowLogoutDialog(true)}
+                variant="outline"
+                style={styles.button}
+              />
             </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{userStats?.totalPoints || 0}</Text>
-              <Text style={styles.statLabel}>Points</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statNumber}>{Math.round(userStats?.totalDistance || 0)}</Text>
-              <Text style={styles.statLabel}>KM Run</Text>
-            </View>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
 
-      {/* Profile Form */}
-      <View style={styles.form}>
-        <Text style={styles.title}>Profile Details</Text>
-
-        <TextInput
-          style={styles.input}
-          placeholder="First Name"
-          value={formData.firstName}
-          onChangeText={(text) =>
-            setFormData((prev) => ({ ...prev, firstName: text }))
-          }
-          editable={isEditing}
-          placeholderTextColor={theme.colors.textLight}
+        <ConfirmationDialog
+          visible={showLogoutDialog}
+          title="Confirm Logout"
+          message="Are you sure you want to log out?"
+          confirmText="Log Out"
+          cancelText="Cancel"
+          confirmVariant="outline"
+          icon="log-out-outline"
+          onConfirm={handleLogout}
+          onCancel={() => setShowLogoutDialog(false)}
         />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Last Name"
-          value={formData.lastName}
-          onChangeText={(text) =>
-            setFormData((prev) => ({ ...prev, lastName: text }))
-          }
-          editable={isEditing}
-          placeholderTextColor={theme.colors.textLight}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Username"
-          value={formData.username}
-          onChangeText={(text) =>
-            setFormData((prev) => ({ ...prev, username: text }))
-          }
-          editable={isEditing}
-          placeholderTextColor={theme.colors.textLight}
-        />
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={formData.email}
-          onChangeText={(text) =>
-            setFormData((prev) => ({ ...prev, email: text }))
-          }
-          editable={isEditing}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          placeholderTextColor={theme.colors.textLight}
-        />
-
-        {error && <Text style={styles.errorText}>{error}</Text>}
-
-        {isEditing ? (
-          <View style={styles.buttonGroup}>
-            <Button
-              title="Save Changes"
-              onPress={handleUpdate}
-              loading={isLoading}
-              variant="primary"
-              style={styles.button}
-            />
-            <Button
-              title="Cancel"
-              onPress={() => {
-                setIsEditing(false);
-                setFormData({
-                  username: user?.username || "",
-                  email: user?.email || "",
-                  firstName: user?.firstName || "",
-                  lastName: user?.lastName || "",
-                });
-              }}
-              variant="outline"
-              style={styles.button}
-            />
-          </View>
-        ) : (
-          <View style={styles.buttonGroup}>
-            <Button
-              title="Edit Profile"
-              onPress={() => setIsEditing(true)}
-              variant="primary"
-              style={styles.button}
-            />
-            <Button
-              title="Log Out"
-              onPress={() => setShowLogoutDialog(true)}
-              variant="outline"
-              style={styles.button}
-            />
-          </View>
-        )}
-      </View>
-
-      <ConfirmationDialog
-        visible={showLogoutDialog}
-        title="Confirm Logout"
-        message="Are you sure you want to log out?"
-        confirmText="Log Out"
-        cancelText="Cancel"
-        confirmVariant="outline"
-        icon="log-out-outline"
-        onConfirm={handleLogout}
-        onCancel={() => setShowLogoutDialog(false)}
-      />
       </ScrollView>
     </View>
   );
@@ -316,16 +342,16 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   tabContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     backgroundColor: theme.colors.surface,
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.sm,
   },
   tabButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: theme.spacing.md,
     paddingHorizontal: theme.spacing.lg,
     borderRadius: theme.borderRadius.md,
@@ -338,7 +364,7 @@ const styles = StyleSheet.create({
   tabButtonText: {
     marginLeft: theme.spacing.sm,
     fontSize: theme.typography.body.fontSize,
-    fontWeight: '600',
+    fontWeight: "600",
     color: theme.colors.text,
   },
   activeTabButtonText: {
